@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>咱的台雞店・每日進貨</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Microsoft JhengHei','Segoe UI',Arial,sans-serif; -webkit-tap-highlight-color:transparent; }
+    :root {
+        --primary:#1a3a5c; --accent:#2e7d9e; --success:#16a34a; --danger:#dc2626;
+        --light:#f8f9fa; --dark:#1e293b; --gray:#64748b; --border:#e2e8f0;
+    }
+    body { background:#eef2f7; min-height:100vh; padding-bottom:76px; }
+    .wrap { max-width:520px; margin:0 auto; }
+
+    .login-card {
+        max-width:340px; margin:80px auto; background:#fff; border-radius:20px;
+        box-shadow:0 15px 30px rgba(0,0,0,.1); padding:32px 24px; text-align:center;
+    }
+    .login-card input {
+        width:100%; padding:14px 15px; border:2px solid var(--border); border-radius:10px;
+        font-size:16px; margin:16px 0; text-align:center;
+    }
+    .btn { border:none; border-radius:10px; font-weight:700; cursor:pointer; transition:.15s; font-size:15px; }
+    .btn-primary { background:var(--primary); color:#fff; padding:14px 20px; width:100%; }
+    .btn-primary:disabled { opacity:.6; cursor:default; }
+    .btn-success { background:var(--success); color:#fff; }
+    .error-text { color:var(--danger); font-size:13px; min-height:18px; }
+
+    header { position:sticky; top:0; z-index:20; background:var(--primary); color:#fff; padding:14px 16px; }
+    header h1 { font-size:18px; font-weight:900; }
+    header .sub { font-size:11px; opacity:.75; margin-top:2px; }
+
+    .date-row { display:flex; align-items:center; gap:10px; background:#fff; padding:10px 12px; border-bottom:1px solid var(--border); }
+    .date-row button { background:var(--light); border:2px solid var(--border); width:34px; height:34px; border-radius:8px; font-weight:900; }
+    .date-row input[type=date] { flex:1; border:2px solid var(--border); border-radius:8px; padding:8px 10px; font-size:14px; }
+
+    .filter-tabs { display:flex; gap:8px; padding:10px 12px; background:#fff; border-bottom:1px solid var(--border); }
+    .filter-tabs button {
+        flex:1; padding:9px 6px; border-radius:20px; border:1.5px solid var(--border);
+        background:#fff; font-size:12.5px; font-weight:700; color:var(--gray);
+    }
+    .filter-tabs button.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+    #rangeTable th { color:var(--gray); font-weight:700; }
+    #rangeTable td { padding:8px 6px; border-top:1px solid var(--border); }
+    #rangeFoot td { font-weight:900; background:var(--light); }
+
+    main { padding:12px; }
+    .summary-cards { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:14px; }
+    .card { border-radius:14px; padding:12px 10px; color:#fff; }
+    .card.blue { background:linear-gradient(135deg,#1a3a5c,#2e6b9e); }
+    .card.amber { background:linear-gradient(135deg,#92400e,#d97706); }
+    .card.green { background:linear-gradient(135deg,#0a5c36,#1a8a52); }
+    .card.red { background:linear-gradient(135deg,#7f1d1d,#dc2626); }
+    .card h4 { font-size:10.5px; opacity:.85; margin-bottom:4px; font-weight:700; }
+    .card .val { font-size:17px; font-weight:900; }
+    .cards-hint { font-size:11px; color:var(--gray); margin:-8px 4px 14px; }
+
+    .section-label { font-size:13px; font-weight:900; color:var(--gray); margin:16px 4px 8px; text-transform:uppercase; letter-spacing:.5px; }
+    .entry-card { background:#fff; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,.05); padding:12px 14px; margin-bottom:10px; }
+    .entry-row { display:flex; gap:8px; align-items:center; }
+    .text-input, .num-input { padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:15px; }
+    .text-input { flex:2; }
+    .num-input { flex:1; text-align:center; }
+    .entry-del-btn { border:none; background:#fee2e2; color:var(--danger); width:34px; height:34px; border-radius:8px; font-size:16px; font-weight:900; flex-shrink:0; }
+    .add-row-btn { margin-top:4px; width:100%; padding:11px; border:1.5px dashed var(--border); background:none; border-radius:8px; color:var(--gray); font-size:13px; font-weight:700; }
+
+    .save-bar { position:fixed; left:0; right:0; bottom:0; z-index:30; background:#fff; border-top:1px solid var(--border); padding:10px 12px; }
+    .save-bar .wrap { max-width:520px; margin:0 auto; }
+
+    .empty-state, .loading { text-align:center; padding:30px 16px; color:var(--gray); font-size:13px; }
+
+    .toast {
+        position:fixed; top:70px; left:50%; transform:translateX(-50%);
+        background:var(--dark); color:#fff; padding:10px 20px; border-radius:10px;
+        font-size:13px; z-index:200; opacity:0; transition:.25s; pointer-events:none;
+    }
+    .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <div class="login-card" id="loginBox">
+        <div style="font-size:40px;margin-bottom:10px;">🔒</div>
+        <h2 style="margin-bottom:6px;">每日進貨</h2>
+        <p style="color:var(--gray);font-size:13px;">請輸入後台密碼</p>
+        <input type="password" id="passwordInput" placeholder="管理密碼" autocomplete="off">
+        <button class="btn btn-primary" id="loginBtn" onclick="tryLogin()">登入</button>
+        <div class="error-text" id="loginError"></div>
+    </div>
+
+    <div id="appArea" style="display:none;">
+        <header>
+            <h1>📦 每日進貨</h1>
+            <div class="sub">咱的台雞店</div>
+        </header>
+
+        <div class="date-row" id="dailyDateRow">
+            <button onclick="changeDate(-1)">←</button>
+            <input type="date" id="dateInput" onchange="onDateChange()">
+            <button onclick="changeDate(1)">→</button>
+        </div>
+        <div class="date-row" id="rangeDateRow" style="display:none;">
+            <span style="font-size:13px;color:var(--gray);flex-shrink:0;">從</span>
+            <input type="date" id="rangeFromInput" onchange="renderRangeReport()">
+            <span style="font-size:13px;color:var(--gray);flex-shrink:0;">到</span>
+            <input type="date" id="rangeToInput" onchange="renderRangeReport()">
+        </div>
+
+        <div class="filter-tabs">
+            <button class="active" data-view="daily" onclick="switchView('daily')">📅 單日進貨</button>
+            <button data-view="range" onclick="switchView('range')">📊 多天損益彙總</button>
+            <button data-view="suppliers" onclick="switchView('suppliers')">🏪 供應商比價</button>
+        </div>
+
+        <main>
+            <div class="loading" id="loadingArea">載入中...</div>
+
+            <div id="contentArea" style="display:none;">
+                <div class="summary-cards" id="summaryCards"></div>
+                <p class="cards-hint" id="sourceLabel"></p>
+
+                <div class="section-label">今天進了什麼貨</div>
+                <div id="entriesList"></div>
+                <!-- ★ 2026-07-22 新增：打字時自動跳出之前用過的品名，不用每次
+                     都重新打一次「雞胸肉」「洋蔥」這些常買的東西，手機打字
+                     省很多力氣。內容是從最近30天的進貨紀錄裡收集來的，不用
+                     另外維護一份清單。 -->
+                <datalist id="itemNameSuggestions"></datalist>
+                <datalist id="supplierSuggestions"></datalist>
+                <button class="add-row-btn" onclick="addEntryRow()">＋ 新增一筆進貨</button>
+                <div class="empty-state" id="entriesEmpty" style="display:none;">今天還沒登錄任何進貨</div>
+            </div>
+
+            <div id="rangeArea" style="display:none;">
+                <div class="loading" id="rangeLoading" style="display:none;">載入中...</div>
+                <div style="overflow-x:auto;">
+                    <table id="rangeTable" style="width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border-radius:12px;overflow:hidden;">
+                        <thead>
+                            <tr style="background:var(--light);text-align:left;">
+                                <th style="padding:8px 6px;">日期</th>
+                                <th style="padding:8px 6px;text-align:right;">營收</th>
+                                <th style="padding:8px 6px;text-align:right;">食材成本</th>
+                                <th style="padding:8px 6px;text-align:right;">毛利</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rangeBody"></tbody>
+                        <tfoot id="rangeFoot"></tfoot>
+                    </table>
+                </div>
+                <div class="empty-state" id="rangeEmpty" style="display:none;">這個區間沒有資料</div>
+            </div>
+
+            <!-- ★ 2026-07-22 新增：供應商比價 -->
+            <div id="suppliersArea" style="display:none;">
+                <div class="loading" id="suppliersLoading" style="display:none;">載入中...</div>
+                <div class="section-hint" style="margin-bottom:10px;">只列出「最近60天內，曾經跟2家以上不同廠商叫過貨」的品項，才有比較的意義；只跟同一家廠商叫過的，不會出現在這裡。</div>
+                <div id="suppliersContent"></div>
+                <div class="empty-state" id="suppliersEmpty" style="display:none;">目前沒有可以比較的品項</div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div class="save-bar" id="saveBar" style="display:none;">
+    <div class="wrap">
+        <button class="btn btn-success" style="width:100%;" onclick="saveEntries()">💾 儲存今日進貨</button>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    // ⚠️ 部署後，把下面這行改成你自己的 Google Apps Script 網址（跟其他頁面用同一個網址）
+    const WEB_APP_URL = '/api/gas';
+
+    // ★ 整合進「管理總覽」框架時，父頁面會把這串換成已經驗證過的真實密碼，
+    // 這裡偵測到不是原本的預留位置文字就直接跳過登入畫面。
+    const INJECTED_PASSWORD = '%%PW%%';
+    const INJECTED_OPERATOR = '%%OPERATOR%%'; // ★ 2026-07-21 新增：操作紀錄用
+
+    let password = '';
+    let currentDate = todayStr();
+    let entries = []; // {item, amount}
+    let isDirty = false;
+
+    function todayStr() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2400);
+    }
+    function escapeHtml(str) {
+        return String(str == null ? '' : str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function markDirty() {
+        isDirty = true;
+        document.getElementById('saveBar').style.display = 'block';
+    }
+
+    // ★ 2026-07-22 新增：載入最近進貨用過的品名，填進datalist當自動建議，
+    // 也順便把「品名→常配對廠商」的對照表填好，選品名時可以自動帶出廠商。
+    // 只需要載入一次（登入之後），不用每次切換日期都重新抓
+    async function loadItemNameSuggestions() {
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getRecentPurchaseItemNames&password=${encodeURIComponent(password)}`);
+            const data = await resp.json();
+            if (data.status === 'success') {
+                const list = document.getElementById('itemNameSuggestions');
+                list.innerHTML = (data.itemNames || []).map(name => `<option value="${escapeHtml(name)}">`).join('');
+
+                itemSupplierMap = data.itemSupplierMap || {};
+
+                // 廠商建議清單：把對照表裡出現過的廠商名稱去重複，一起放進去
+                const supplierSet = new Set(Object.values(itemSupplierMap));
+                const supplierList = document.getElementById('supplierSuggestions');
+                supplierList.innerHTML = Array.from(supplierSet).map(name => `<option value="${escapeHtml(name)}">`).join('');
+            }
+        } catch (err) {
+            console.warn('[進貨品名建議] 載入失敗，不影響手動輸入：', err.message);
+        }
+    }
+
+    // ────────────────────────────────────────────
+    // 登入
+    // ────────────────────────────────────────────
+    async function tryLogin() {
+        const pw = document.getElementById('passwordInput').value.trim();
+        const errEl = document.getElementById('loginError');
+        const btnEl = document.getElementById('loginBtn');
+        errEl.textContent = '';
+        if (!pw) { errEl.textContent = '請輸入密碼'; return; }
+
+        if (btnEl) { btnEl.disabled = true; btnEl.textContent = '登入中...'; }
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getOrders&password=${encodeURIComponent(pw)}`);
+            const data = await resp.json();
+            if (data.status !== 'success') {
+                errEl.textContent = data.message || '登入失敗，請確認密碼';
+                return;
+            }
+        } catch (err) {
+            errEl.textContent = '無法連線：' + err.message;
+            return;
+        } finally {
+            if (btnEl) { btnEl.disabled = false; btnEl.textContent = '登入'; }
+        }
+
+        password = pw;
+        document.getElementById('loginBox').style.display = 'none';
+        document.getElementById('appArea').style.display = 'block';
+        document.getElementById('dateInput').value = currentDate;
+        initRangeDefaults();
+        loadForDate();
+        loadItemNameSuggestions();
+    }
+
+    // ★ 2026-07-22 重大bug修正：原理跟tool_orders.html同一個bug，見那邊註解
+    const UNINJECTED_MARKER = '%%' + 'PW' + '%%';
+    if (INJECTED_PASSWORD !== UNINJECTED_MARKER) {
+        password = INJECTED_PASSWORD;
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('appArea').style.display = 'block';
+            document.getElementById('dateInput').value = currentDate;
+            initRangeDefaults();
+            loadForDate();
+            loadItemNameSuggestions();
+        });
+    }
+
+    // ────────────────────────────────────────────
+    // 單日進貨 ↔ 多天損益彙總，切換畫面
+    // ────────────────────────────────────────────
+    let rangeLoadedOnce = false;
+    let suppliersLoadedOnce = false;
+    function switchView(view) {
+        document.querySelectorAll('.filter-tabs button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+        document.getElementById('dailyDateRow').style.display = view === 'daily' ? 'flex' : 'none';
+        document.getElementById('rangeDateRow').style.display = view === 'range' ? 'flex' : 'none';
+        document.getElementById('contentArea').style.display = view === 'daily' ? 'block' : 'none';
+        document.getElementById('rangeArea').style.display = view === 'range' ? 'block' : 'none';
+        document.getElementById('suppliersArea').style.display = view === 'suppliers' ? 'block' : 'none';
+        document.getElementById('saveBar').style.display = (view === 'daily' && isDirty) ? 'block' : 'none';
+        if (view === 'range' && !rangeLoadedOnce) {
+            rangeLoadedOnce = true;
+            renderRangeReport();
+        }
+        if (view === 'suppliers' && !suppliersLoadedOnce) {
+            suppliersLoadedOnce = true;
+            loadSupplierPriceCompare();
+        }
+    }
+
+    // ★ 2026-07-22 新增：供應商比價
+    async function loadSupplierPriceCompare() {
+        document.getElementById('suppliersLoading').style.display = 'block';
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getSupplierPriceCompare&password=${encodeURIComponent(password)}`);
+            const data = await resp.json();
+            if (data.status !== 'success') { showToast('❌ ' + data.message); return; }
+
+            const comparisons = data.comparisons || [];
+            const contentEl = document.getElementById('suppliersContent');
+            const emptyEl = document.getElementById('suppliersEmpty');
+            if (comparisons.length === 0) {
+                contentEl.innerHTML = '';
+                emptyEl.style.display = 'block';
+                return;
+            }
+            emptyEl.style.display = 'none';
+            contentEl.innerHTML = comparisons.map(c => `
+                <div class="card" style="margin-bottom:10px;">
+                    <div style="font-weight:900;font-size:15px;margin-bottom:8px;">${escapeHtml(c.item)}</div>
+                    ${c.suppliers.map((s, idx) => `
+                        <div style="display:flex;justify-content:space-between;padding:6px 0;${idx > 0 ? 'border-top:1px solid var(--border);' : ''}">
+                            <span style="font-size:13px;color:${idx === 0 ? '#16a34a' : 'var(--gray)'};font-weight:${idx === 0 ? '700' : '400'};">${idx === 0 ? '🏆 ' : ''}${escapeHtml(s.supplier)}</span>
+                            <span style="font-size:13px;font-weight:700;">$${s.amount}<span style="color:var(--gray);font-weight:400;font-size:11px;"> (${s.date})</span></span>
+                        </div>`).join('')}
+                </div>`).join('');
+        } catch (err) {
+            showToast('❌ 讀取供應商比價失敗：' + err.message);
+        } finally {
+            document.getElementById('suppliersLoading').style.display = 'none';
+        }
+    }
+
+
+    function initRangeDefaults() {
+        const today = new Date();
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 6);
+        const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        document.getElementById('rangeFromInput').value = fmt(weekAgo);
+        document.getElementById('rangeToInput').value = fmt(today);
+    }
+
+    // ★ 多天損益彙總：直接呼叫 getCostReport（一次帶回整段區間的每日營收／
+    // 食材成本／毛利），基本版是純雲端架構，不用像進階報表工具那樣還要
+    // 先試本機伺服器，這裡簡單很多，一支API打完就有資料。
+    async function renderRangeReport() {
+        const from = document.getElementById('rangeFromInput').value;
+        const to = document.getElementById('rangeToInput').value;
+        if (!from || !to) return;
+        document.getElementById('rangeLoading').style.display = 'block';
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getCostReport&password=${encodeURIComponent(password)}&from=${from}&to=${to}`);
+            const data = await resp.json();
+            if (data.status !== 'success') { showToast('❌ ' + data.message); return; }
+
+            const rows = data.daily || [];
+            const body = document.getElementById('rangeBody');
+            const foot = document.getElementById('rangeFoot');
+            const emptyEl = document.getElementById('rangeEmpty');
+
+            if (rows.length === 0) {
+                body.innerHTML = ''; foot.innerHTML = '';
+                emptyEl.style.display = 'block';
+                return;
+            }
+            emptyEl.style.display = 'none';
+
+            body.innerHTML = rows.map(r => {
+                const profit = (r.revenue || 0) - (r.foodCost || 0);
+                return `<tr>
+                    <td>${r.date}</td>
+                    <td style="text-align:right;">$${r.revenue || 0}</td>
+                    <td style="text-align:right;">$${r.foodCost || 0}</td>
+                    <td style="text-align:right;color:${profit >= 0 ? 'var(--success)' : 'var(--danger)'};">$${profit}</td>
+                </tr>`;
+            }).join('');
+
+            const sum = rows.reduce((a, r) => ({
+                revenue: a.revenue + (r.revenue || 0),
+                foodCost: a.foodCost + (r.foodCost || 0)
+            }), { revenue: 0, foodCost: 0 });
+            const sumProfit = sum.revenue - sum.foodCost;
+            foot.innerHTML = `<tr>
+                <td>區間合計</td>
+                <td style="text-align:right;">$${sum.revenue}</td>
+                <td style="text-align:right;">$${sum.foodCost}</td>
+                <td style="text-align:right;color:${sumProfit >= 0 ? 'var(--success)' : 'var(--danger)'};">$${sumProfit}</td>
+            </tr>`;
+        } catch (err) {
+            showToast('❌ 無法連線：' + err.message);
+        } finally {
+            document.getElementById('rangeLoading').style.display = 'none';
+        }
+    }
+
+    function changeDate(delta) {
+        const d = new Date(currentDate + 'T00:00:00');
+        d.setDate(d.getDate() + delta);
+        currentDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        document.getElementById('dateInput').value = currentDate;
+        loadForDate();
+    }
+    function onDateChange() {
+        currentDate = document.getElementById('dateInput').value || todayStr();
+        loadForDate();
+    }
+
+    // ────────────────────────────────────────────
+    // 讀取：這一天已經登錄過的進貨明細 ＋ 當日營收/成本報表（自動反映用）
+    // ────────────────────────────────────────────
+    async function loadForDate() {
+        document.getElementById('loadingArea').style.display = 'block';
+        document.getElementById('contentArea').style.display = 'none';
+        isDirty = false;
+        document.getElementById('saveBar').style.display = 'none';
+        try {
+            const [recordResp, reportResp] = await Promise.all([
+                fetch(`${WEB_APP_URL}?action=getDailyRecord&password=${encodeURIComponent(password)}&date=${currentDate}`),
+                fetch(`${WEB_APP_URL}?action=getCostReport&password=${encodeURIComponent(password)}&from=${currentDate}&to=${currentDate}`)
+            ]);
+            const recordData = await recordResp.json();
+            const reportData = await reportResp.json();
+
+            if (recordData.status !== 'success') { showToast('❌ ' + recordData.message); return; }
+
+            // 只顯示「食材成本」這個科別的明細，符合陽春版「進貨=食材成本」的簡化定位
+            entries = ((recordData.record && recordData.record.entries) || [])
+                .filter(en => en.category === '食材成本')
+                .map(en => ({ item: en.item || '', amount: Number(en.amount) || 0, supplier: en.supplier || '' }));
+
+            renderEntries();
+
+            const day = (reportData.status === 'success' && (reportData.daily || [])[0]) || { revenue: 0, foodCost: 0, fixedCost: 0, profit: 0 };
+            renderSummary(day, recordData.record && recordData.record.entries && recordData.record.entries.length > 0);
+        } catch (err) {
+            showToast('❌ 無法連線：' + err.message);
+        } finally {
+            document.getElementById('loadingArea').style.display = 'none';
+            document.getElementById('contentArea').style.display = 'block';
+        }
+    }
+
+    function renderSummary(day, hasManualRecord) {
+        const revenue = day.revenue || 0;
+        const foodCost = day.foodCost || 0;
+        const grossProfit = revenue - foodCost;
+        // ★ 2026-07-22 新增：食材成本佔營收比例。餐飲業一般健康的原物料成本率
+        // 大概落在 28%-35% 之間（依業態不同），超過這個範圍代表可能利潤被
+        // 吃掉了，用顏色直接提醒，不用自己心算百分比。沒有營收（例如公休）
+        // 那天不算，避免除以0。
+        const foodCostRatio = revenue > 0 ? Math.round((foodCost / revenue) * 100) : null;
+        const ratioColor = foodCostRatio === null ? 'blue' : (foodCostRatio <= 35 ? 'green' : (foodCostRatio <= 45 ? 'amber' : 'red'));
+        const ratioText = foodCostRatio === null ? '－' : foodCostRatio + '%';
+
+        document.getElementById('summaryCards').innerHTML = `
+            <div class="card blue"><h4>當日營收</h4><div class="val">$${revenue}</div></div>
+            <div class="card amber"><h4>食材成本</h4><div class="val">$${foodCost}</div></div>
+            <div class="card ${grossProfit >= 0 ? 'green' : 'red'}"><h4>約略毛利</h4><div class="val">$${grossProfit}</div></div>
+            <div class="card ${ratioColor}"><h4>食材成本率</h4><div class="val">${ratioText}</div></div>
+        `;
+        document.getElementById('sourceLabel').textContent = hasManualRecord
+            ? '📋 食材成本＝下方登錄的進貨總和，營收＝LINE訂單實際成交金額｜💡 食材成本率一般抓28%-35%算健康，超過45%要留意'
+            : '📋 這天還沒登錄過進貨，食材成本先顯示為0；營收＝LINE訂單實際成交金額';
+    }
+
+    // ────────────────────────────────────────────
+    // 進貨明細（品名＋廠商＋成本，統一算食材成本）
+    // ────────────────────────────────────────────
+    let itemSupplierMap = {}; // ★ 2026-07-22 新增：品名 → 常配對廠商的對照表，選品名時自動帶出來用
+
+    function renderEntries() {
+        const list = document.getElementById('entriesList');
+        const emptyEl = document.getElementById('entriesEmpty');
+        if (entries.length === 0) { list.innerHTML = ''; emptyEl.style.display = 'block'; return; }
+        emptyEl.style.display = 'none';
+        list.innerHTML = entries.map((en, idx) => `
+            <div class="entry-card">
+                <div class="entry-row" style="margin-bottom:6px;">
+                    <input type="text" class="text-input" value="${escapeHtml(en.item)}" placeholder="品名，例如：雞胸肉" list="itemNameSuggestions" oninput="onItemNameChange(${idx},this.value)">
+                    <input type="number" class="num-input" value="${en.amount || 0}" placeholder="成本" oninput="onEntryChange(${idx},'amount',this.value)">
+                    <button class="entry-del-btn" onclick="removeEntry(${idx})" title="刪除">✕</button>
+                </div>
+                <div class="entry-row">
+                    <input type="text" class="text-input" style="font-size:12px;" value="${escapeHtml(en.supplier || '')}" placeholder="🏪 廠商（例如：OO肉商）" list="supplierSuggestions" oninput="onEntryChange(${idx},'supplier',this.value)">
+                </div>
+            </div>`).join('');
+    }
+    function onEntryChange(idx, field, value) {
+        entries[idx][field] = (field === 'amount') ? (Number(value) || 0) : value;
+        markDirty();
+    }
+    // ★ 2026-07-22 新增：品名改變時，如果這個品名之前有配對過的廠商紀錄，
+    // 自動把廠商欄位也一起帶出來——但只在「廠商欄位目前是空的」時才自動
+    // 帶入，不要覆蓋掉使用者可能已經手動改過的廠商
+    function onItemNameChange(idx, value) {
+        entries[idx].item = value;
+        const matchedSupplier = itemSupplierMap[value.trim()];
+        if (matchedSupplier && !entries[idx].supplier) {
+            entries[idx].supplier = matchedSupplier;
+        }
+        markDirty();
+        renderEntries();
+    }
+    function addEntryRow() {
+        entries.push({ item: '', amount: 0, supplier: '' });
+        markDirty();
+        renderEntries();
+    }
+    function removeEntry(idx) {
+        entries.splice(idx, 1);
+        markDirty();
+        renderEntries();
+    }
+
+    // ────────────────────────────────────────────
+    // 儲存：整批送出這一天的「食材成本」明細
+    // ────────────────────────────────────────────
+    async function saveEntries() {
+        const entriesForSave = entries
+            .filter(en => (en.item || '').trim())
+            .map(en => ({ category: '食材成本', supplier: (en.supplier || '').trim(), item: en.item.trim(), amount: Number(en.amount) || 0 }));
+
+        try {
+            const resp = await fetch(WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'updateDailyRecord', password, operator: INJECTED_OPERATOR, date: currentDate, entries: entriesForSave })
+            });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                showToast('✅ 已儲存，今日報表已更新');
+                isDirty = false;
+                document.getElementById('saveBar').style.display = 'none';
+                loadForDate(); // 重新讀一次，讓上方報表卡片反映剛存的資料
+            } else {
+                showToast('❌ ' + data.message);
+            }
+        } catch (err) {
+            showToast('❌ 儲存失敗：' + err.message);
+        }
+    }
+
+    document.getElementById('passwordInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter') tryLogin();
+    });
+</script>
+</body>
+</html>

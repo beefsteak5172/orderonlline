@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>咱的台雞店・菜單編輯</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Microsoft JhengHei','Segoe UI',Arial,sans-serif; -webkit-tap-highlight-color:transparent; }
+    :root {
+        --primary:#1a3a5c; --accent:#2e7d9e; --success:#16a34a; --danger:#dc2626;
+        --light:#f8f9fa; --dark:#1e293b; --gray:#64748b; --border:#e2e8f0;
+    }
+    body { background:#eef2f7; min-height:100vh; padding-bottom:76px; }
+    .wrap { max-width:520px; margin:0 auto; }
+
+    .login-card {
+        max-width:340px; margin:80px auto; background:#fff; border-radius:20px;
+        box-shadow:0 15px 30px rgba(0,0,0,.1); padding:32px 24px; text-align:center;
+    }
+    .login-card input {
+        width:100%; padding:14px 15px; border:2px solid var(--border); border-radius:10px;
+        font-size:16px; margin:16px 0; text-align:center;
+    }
+    .btn { border:none; border-radius:10px; font-weight:700; cursor:pointer; transition:.15s; font-size:15px; }
+    .btn-primary { background:var(--primary); color:#fff; padding:14px 20px; width:100%; }
+    .btn-primary:disabled { opacity:.6; cursor:default; }
+    .btn-success { background:var(--success); color:#fff; }
+    .error-text { color:var(--danger); font-size:13px; min-height:18px; }
+
+    header { position:sticky; top:0; z-index:20; background:var(--primary); color:#fff; padding:14px 16px; }
+    header h1 { font-size:18px; font-weight:900; }
+    header .sub { font-size:11px; opacity:.75; margin-top:2px; }
+
+    .filter-tabs { display:flex; gap:8px; padding:10px 12px 0; background:#fff; overflow-x:auto; }
+    .filter-tabs button {
+        flex-shrink:0; padding:8px 16px; border-radius:20px; border:1.5px solid var(--border);
+        background:#fff; font-size:13px; font-weight:700; color:var(--gray);
+    }
+    .filter-tabs button.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+    main { padding:12px; }
+    .section-label {
+        font-size:13px; font-weight:900; color:var(--gray); margin:16px 4px 8px;
+        text-transform:uppercase; letter-spacing:.5px;
+    }
+    .section-hint { font-size:12px; color:var(--gray); margin:0 4px 10px; line-height:1.5; }
+    .card { background:#fff; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,.05); padding:14px 16px; margin-bottom:10px; }
+    .row { display:flex; align-items:center; gap:10px; }
+    .row + .row { margin-top:10px; }
+    .item-name { font-weight:900; font-size:15px; color:var(--dark); flex:1; }
+    .field-label { font-size:11px; color:var(--gray); margin-bottom:3px; display:block; }
+    .num-input, .text-input {
+        width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px;
+        font-size:15px;
+    }
+    .num-input { text-align:center; }
+    .field-col { flex:1; min-width:0; }
+
+    .toggle-switch { position:relative; width:44px; height:24px; flex-shrink:0; }
+    .toggle-switch input { opacity:0; width:0; height:0; }
+    .toggle-slider {
+        position:absolute; inset:0; background:#cbd5e1; border-radius:24px; cursor:pointer; transition:.2s;
+    }
+    .toggle-slider:before {
+        content:''; position:absolute; width:18px; height:18px; left:3px; top:3px;
+        background:#fff; border-radius:50%; transition:.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background:var(--success); }
+    .toggle-switch input:checked + .toggle-slider:before { transform:translateX(20px); }
+
+    .group-chip-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .group-chip {
+        display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:20px;
+        border:1.5px solid var(--border); background:#fff; font-size:12.5px; font-weight:700;
+        color:var(--gray); cursor:pointer; user-select:none;
+    }
+    .group-chip.on { background:#e0f2fe; border-color:var(--accent); color:var(--accent); }
+    .group-chip-empty { font-size:12px; color:var(--gray); }
+
+    .choice-row { display:flex; gap:6px; align-items:center; margin-top:6px; }
+    .choice-row .text-input { flex:2; }
+    .choice-row .num-input { flex:1; }
+    .choice-del-btn {
+        border:none; background:#fee2e2; color:var(--danger); width:32px; height:32px;
+        border-radius:8px; font-size:16px; font-weight:900; flex-shrink:0;
+    }
+    .add-choice-btn, .add-row-btn {
+        margin-top:8px; width:100%; padding:9px; border:1.5px dashed var(--border);
+        background:none; border-radius:8px; color:var(--gray); font-size:13px; font-weight:700;
+    }
+    .group-del-btn { border:none; background:none; color:var(--danger); font-size:13px; font-weight:700; }
+
+    .save-bar {
+        position:fixed; left:0; right:0; bottom:0; z-index:30; background:#fff; border-top:1px solid var(--border);
+        padding:10px 12px calc(24px + env(safe-area-inset-bottom, 0px)); display:none;
+    }
+    .save-bar.show { display:block; }
+    .save-bar .wrap { max-width:520px; margin:0 auto; }
+
+    .empty-state, .loading { text-align:center; padding:40px 16px; color:var(--gray); font-size:13px; }
+    .pane { display:none; }
+    .pane.active { display:block; }
+
+    .toast {
+        position:fixed; top:70px; left:50%; transform:translateX(-50%);
+        background:var(--dark); color:#fff; padding:10px 20px; border-radius:10px;
+        font-size:13px; z-index:200; opacity:0; transition:.25s; pointer-events:none;
+    }
+    .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <div class="login-card" id="loginBox">
+        <div style="font-size:40px;margin-bottom:10px;">🔒</div>
+        <h2 style="margin-bottom:6px;">菜單編輯</h2>
+        <p style="color:var(--gray);font-size:13px;">請輸入後台密碼</p>
+        <input type="password" id="passwordInput" placeholder="管理密碼" autocomplete="off">
+        <button class="btn btn-primary" id="loginBtn" onclick="tryLogin()">登入</button>
+        <div class="error-text" id="loginError"></div>
+    </div>
+
+    <div id="appArea" style="display:none;">
+        <header>
+            <h1 id="pageTitle">🍗 菜單品項</h1>
+            <div class="sub">咱的台雞店</div>
+        </header>
+
+        <div class="filter-tabs">
+            <button class="active" data-pane="pane-items" onclick="switchPane('pane-items')">🍗 菜單品項</button>
+            <button data-pane="pane-addons" onclick="switchPane('pane-addons')">➕ 加購項目</button>
+            <button data-pane="pane-groups" onclick="switchPane('pane-groups')">🎛️ 客製選項</button>
+        </div>
+
+        <div style="display:flex; gap:8px; padding:10px 12px 0;">
+            <button class="btn" style="flex:1; background:#fff; border:1.5px solid var(--border); color:var(--dark); padding:10px;" onclick="document.getElementById('importFileInput').click()">📥 匯入 JSON</button>
+            <button class="btn" style="flex:1; background:#fff; border:1.5px solid var(--border); color:var(--dark); padding:10px;" onclick="exportCurrentAsJson()">📤 匯出目前 JSON</button>
+            <input type="file" id="importFileInput" accept="application/json,.json" style="display:none;" onchange="handleImportFile(event)">
+        </div>
+
+        <main>
+            <div class="loading" id="menuLoading">載入中...</div>
+
+            <div class="pane active" id="pane-items">
+                <div id="menuList"></div>
+                <div class="empty-state" id="menuEmpty" style="display:none;">目前沒有菜單品項</div>
+            </div>
+
+            <div class="pane" id="pane-addons">
+                <p class="section-hint">這裡設定的加購項目，客人點餐時可以額外勾選加購（例如加蛋、多醬），適用於所有品項。</p>
+                <div id="addonsList"></div>
+                <button class="add-row-btn" onclick="addAddonRow()">＋ 新增加購項目</button>
+            </div>
+
+            <div class="pane" id="pane-groups">
+                <p class="section-hint">這裡設定「一組一組」的選擇（例如「冰塊」這組有正常冰/少冰/去冰可選，「辣度」這組有不辣/小辣/大辣可選）。設定好之後，回到「菜單品項」分頁，替每個品項勾選要套用哪幾組。<br><b>⚠️ 這裡的選項目前無法個別加價</b>，客人選了都是原價。如果是「加購奶茶要多收 15 元」這種需要加價的，請改用「加購項目」分頁設定。</p>
+                <div id="groupsList"></div>
+                <button class="add-row-btn" onclick="addGroupRow()">＋ 新增一組客製選項</button>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div class="save-bar" id="saveBar">
+    <div class="wrap">
+        <button class="btn btn-success" style="width:100%;" onclick="saveAllChanges()">💾 儲存所有變更</button>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    const WEB_APP_URL = '/api/gas';
+    const INJECTED_PASSWORD = '%%PW%%';
+    const INJECTED_OPERATOR = '%%OPERATOR%%'; // ★ 2026-07-21 新增：操作紀錄用
+
+    let password = '';
+    let menuItems = [];
+    let addonsList = [];
+    let groupsList = [];
+    let isDirty = false;
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2400);
+    }
+    function escapeHtml(str) {
+        return String(str == null ? '' : str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function markDirty() {
+        isDirty = true;
+        document.getElementById('saveBar').classList.add('show');
+    }
+
+    function switchPane(paneId) {
+        document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+        document.getElementById(paneId).classList.add('active');
+        document.querySelectorAll('.filter-tabs button').forEach(b => b.classList.toggle('active', b.dataset.pane === paneId));
+        const titles = { 'pane-items': '🍗 菜單品項', 'pane-addons': '➕ 加購項目', 'pane-groups': '🎛️ 客製選項' };
+        document.getElementById('pageTitle').textContent = titles[paneId];
+    }
+
+    async function tryLogin() {
+        const pw = document.getElementById('passwordInput').value.trim();
+        const errEl = document.getElementById('loginError');
+        const btnEl = document.getElementById('loginBtn');
+        errEl.textContent = '';
+        if (!pw) { errEl.textContent = '請輸入密碼'; return; }
+
+        if (btnEl) { btnEl.disabled = true; btnEl.textContent = '登入中...'; }
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getOrders&password=${encodeURIComponent(pw)}`);
+            const data = await resp.json();
+            if (data.status !== 'success') {
+                errEl.textContent = data.message || '登入失敗，請確認密碼';
+                return;
+            }
+        } catch (err) {
+            errEl.textContent = '無法連線：' + err.message;
+            return;
+        } finally {
+            if (btnEl) { btnEl.disabled = false; btnEl.textContent = '登入'; }
+        }
+
+        password = pw;
+        document.getElementById('loginBox').style.display = 'none';
+        document.getElementById('appArea').style.display = 'block';
+        loadAll();
+    }
+
+    // ★ 2026-07-22 重大bug修正：原理跟tool_orders.html同一個bug，見那邊註解
+    const UNINJECTED_MARKER = '%%' + 'PW' + '%%';
+    if (INJECTED_PASSWORD !== UNINJECTED_MARKER) {
+        password = INJECTED_PASSWORD;
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('appArea').style.display = 'block';
+            loadAll();
+        });
+    }
+
+    async function loadAll() {
+        document.getElementById('menuLoading').style.display = 'block';
+        isDirty = false;
+        document.getElementById('saveBar').classList.remove('show');
+        try {
+            const res = await fetch(`${WEB_APP_URL}?action=getMenu`);
+            const data = await res.json();
+            if (data.status !== 'success') { showToast('❌ ' + data.message); return; }
+
+            menuItems = data.items || [];
+            addonsList = data.addons || [];
+            groupsList = (data.optionSpecs || []).map(s => ({
+                name: s.name,
+                choices: (s.choiceList || []).map(c => c.name), // ★ 見下方說明，選項加價目前客人點餐頁面沒有真的支援，只存名稱
+                limit: s.limit || 1,
+                required: s.required || 0,
+                breakfastDefault: s.defaultChoice || '',
+                normalDefault: s.defaultChoice || ''
+            }));
+
+            // ★ 2026-07-20 修正：客人點餐頁面實際上是把 options 欄位讀成一個 JSON
+            // 陣列，裡面裝的是「這組客製選項排在清單第幾個」的索引鍵（spec_0、
+            // spec_1...），不是名稱文字；另外「加購項目」要不要出現在這個品項的
+            // 點餐畫面上，也是看陣列裡有沒有明確包含字面字串 "addons"，不是「店
+            // 裡有設定加購項目」就自動每個品項都能加購。這裡把索引鍵換算回目前
+            // 這組客製選項清單裡「排第幾個」對應到的名稱，用名稱存進 _groupSet
+            // 方便畫面顯示勾選狀態，存檔時再換算回索引鍵（見 saveAllChanges）。
+            // 加購項目是否開放，另外用一個特殊記號 __ADDONS__ 存進同一個Set裡。
+            menuItems.forEach(it => {
+                let groups = [];
+                try {
+                    const parsed = JSON.parse(it.options || '[]');
+                    if (Array.isArray(parsed)) groups = parsed;
+                } catch (e) { groups = []; } // 讀不出來（舊格式/空值）就當作沒設定，不報錯
+
+                const set = new Set();
+                groups.forEach(g => {
+                    if (g === 'addons') { set.add('__ADDONS__'); return; }
+                    const m = /^spec_(\d+)$/.exec(g);
+                    if (m) {
+                        const gi = parseInt(m[1], 10);
+                        if (groupsList[gi]) set.add(groupsList[gi].name);
+                    }
+                });
+                it._groupSet = set;
+            });
+
+            renderMenu();
+            renderAddons();
+            renderGroups();
+        } catch (err) {
+            showToast('❌ 無法連線：' + err.message);
+        } finally {
+            document.getElementById('menuLoading').style.display = 'none';
+        }
+    }
+
+    // ────────────────────────────────────────────
+    // ★ 新增：JSON 匯入/匯出，方便一次寫好整份菜單再上傳，不用一項一項手動填。
+    //
+    // 匯入的 JSON 格式（items/addons/groups 都可省略，沒寫的分頁維持原樣不變）：
+    // {
+    //   "items": [
+    //     { "category": "豆花", "name": "傳統豆花", "price": 40, "icon": "🍮", "addons": true },
+    //     { "category": "各式剉冰", "name": "芒果冰", "price": 70, "icon": "🍧" }
+    //   ],
+    //   "addons": [
+    //     { "name": "珍珠", "price": 10 },
+    //     { "name": "粉圓", "price": 10 }
+    //   ],
+    //   "groups": [
+    //     { "name": "甜度", "choices": ["正常","少糖","無糖"], "limit": 1, "required": 0 }
+    //   ]
+    // }
+    //
+    // 說明：
+    // - item.addons 設 true，代表這個品項要開放「加購項目」分頁那些選項（例如加珍珠+10）。
+    //   加購項目本身有獨立單價，這是這個系統裡唯一真正「能加價」的客製化方式。
+    // - item.groups 是陣列，裡面填「客製選項」分頁的組名（要先在 groups 裡定義好，
+    //   或本來就已經存在），代表這個品項要套用哪幾組選擇（例如冰塊、辣度這種不加價的選項）。
+    // - 匯入後不會馬上存檔，畫面上會先顯示出來，你可以檢查沒問題再按最下面
+    //   「💾 儲存所有變更」，或發現不對就重新整理頁面放棄這次匯入。
+    function handleImportFile(event) {
+        const file = event.target.files && event.target.files[0];
+        event.target.value = ''; // 清空，避免同一個檔案改完內容想再匯一次時，因為檔名沒變不觸發 onchange
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            let data;
+            try {
+                data = JSON.parse(reader.result);
+            } catch (err) {
+                showToast('❌ JSON 格式錯誤，請檢查檔案內容：' + err.message);
+                return;
+            }
+            importFromJson(data);
+        };
+        reader.onerror = () => showToast('❌ 讀取檔案失敗');
+        reader.readAsText(file, 'utf-8');
+    }
+
+    function importFromJson(data) {
+        if (!data || typeof data !== 'object') {
+            showToast('❌ JSON 內容格式不正確（最外層必須是一個物件）');
+            return;
+        }
+
+        let importedGroups = false, importedAddons = false, importedItems = false;
+
+        // ★ 順序很重要：groups 一定要先匯入，item.groups 才能正確對應到 _groupSet
+        if (Array.isArray(data.groups)) {
+            groupsList = data.groups.map(g => ({
+                name: String(g.name || '').trim(),
+                choices: Array.isArray(g.choices) ? g.choices.map(c => String(c || '').trim()).filter(Boolean) : [],
+                limit: Number(g.limit) || 1,
+                required: g.required ? 1 : 0,
+                breakfastDefault: g.breakfastDefault || '',
+                normalDefault: g.normalDefault || ''
+            })).filter(g => g.name);
+            importedGroups = true;
+        }
+
+        if (Array.isArray(data.addons)) {
+            addonsList = data.addons.map(a => ({
+                name: String(a.name || '').trim(),
+                price: Number(a.price) || 0,
+                status: a.status || '供應中'
+            })).filter(a => a.name);
+            importedAddons = true;
+        }
+
+        if (Array.isArray(data.items)) {
+            const groupNameSet = new Set(groupsList.map(g => g.name));
+            menuItems = data.items.map(it => {
+                const set = new Set();
+                if (Array.isArray(it.groups)) {
+                    it.groups.forEach(gName => {
+                        if (groupNameSet.has(gName)) set.add(gName);
+                        // 對不到現有的客製選項組名稱就跳過，不會讓匯入整個失敗，
+                        // 之後在畫面上檢查得到（那個品項底下不會勾選任何客製選項）
+                    });
+                }
+                if (it.addons === true) set.add('__ADDONS__');
+                return {
+                    category: String(it.category || '未分類').trim(),
+                    name: String(it.name || '').trim(),
+                    price: Number(it.price) || 0,
+                    icon: it.icon || '',
+                    status: it.status || '供應中',
+                    image: it.image || '',
+                    cost: Number(it.cost) || 0,
+                    safetyStock: Number(it.safetyStock) || 0,
+                    canBeCombo: !!it.canBeCombo,
+                    comboUpgradePrice: Number(it.comboUpgradePrice) || 0,
+                    _groupSet: set
+                };
+            }).filter(it => it.name);
+            importedItems = true;
+        }
+
+        renderMenu();
+        renderAddons();
+        renderGroups();
+        markDirty();
+
+        const parts = [];
+        if (importedItems) parts.push(`${menuItems.length} 個品項`);
+        if (importedAddons) parts.push(`${addonsList.length} 個加購項目`);
+        if (importedGroups) parts.push(`${groupsList.length} 組客製選項`);
+        showToast(parts.length > 0
+            ? `✅ 已匯入 ${parts.join('、')}，檢查沒問題後記得按「儲存所有變更」`
+            : '⚠️ 這份 JSON 裡沒有找到 items / addons / groups 任何一個可匯入的欄位');
+    }
+
+    // ★ 匯出目前畫面上的資料成 JSON 檔案下載，格式跟匯入格式一致，方便你
+    // 拿現有的當範本、照著改，或存一份備份。
+    function exportCurrentAsJson() {
+        const groupIndexToName = groupsList.map(g => g.name);
+        const exportData = {
+            items: menuItems.map(it => {
+                const groups = [];
+                (it._groupSet || new Set()).forEach(name => {
+                    if (name !== '__ADDONS__' && groupIndexToName.includes(name)) groups.push(name);
+                });
+                return {
+                    category: it.category || '',
+                    name: it.name || '',
+                    price: Number(it.price) || 0,
+                    icon: it.icon || '',
+                    status: it.status || '供應中',
+                    cost: Number(it.cost) || 0,
+                    safetyStock: Number(it.safetyStock) || 0,
+                    canBeCombo: !!it.canBeCombo,
+                    comboUpgradePrice: Number(it.comboUpgradePrice) || 0,
+                    groups: groups,
+                    addons: (it._groupSet || new Set()).has('__ADDONS__')
+                };
+            }),
+            addons: addonsList.map(a => ({ name: a.name || '', price: Number(a.price) || 0, status: a.status || '供應中' })),
+            groups: groupsList.map(g => ({
+                name: g.name || '', choices: g.choices || [], limit: g.limit || 1, required: !!g.required
+            }))
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `menu_export_${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('📤 已匯出目前的菜單/加購/客製選項成 JSON 檔案');
+    }
+
+    function renderMenu() {
+        const list = document.getElementById('menuList');
+        if (menuItems.length === 0) { document.getElementById('menuEmpty').style.display = 'block'; return; }
+        document.getElementById('menuEmpty').style.display = 'none';
+
+        const byCat = {};
+        menuItems.forEach((it, idx) => {
+            const cat = it.category || '未分類';
+            if (!byCat[cat]) byCat[cat] = [];
+            byCat[cat].push(idx);
+        });
+
+        let html = '';
+        Object.keys(byCat).forEach(cat => {
+            html += `<div class="section-label">${escapeHtml(cat)}</div>`;
+            byCat[cat].forEach(idx => {
+                const it = menuItems[idx];
+                const isOn = it.status === '供應中';
+                const groupChips = groupsList.length === 0 ? '' : groupsList.map(g => {
+                    const on = it._groupSet.has(g.name);
+                    return `<span class="group-chip ${on ? 'on' : ''}" onclick="toggleItemGroup(${idx}, '${escapeHtml(g.name).replace(/'/g,"\\'")}')">${on ? '✓ ' : ''}${escapeHtml(g.name)}</span>`;
+                }).join('');
+                const addonsOn = it._groupSet.has('__ADDONS__');
+                const addonsChip = `<span class="group-chip ${addonsOn ? 'on' : ''}" onclick="toggleItemAddons(${idx})">${addonsOn ? '✓ ' : ''}➕ 允許加購</span>`;
+                const chips = groupsList.length === 0
+                    ? `<span class="group-chip-empty">尚未設定任何客製選項群組，先到「客製選項」分頁新增</span>${addonsChip}`
+                    : groupChips + addonsChip;
+                html += `
+                <div class="card">
+                    <div class="row">
+                        <div class="item-name">${escapeHtml(it.icon || '')} ${escapeHtml(it.name)}</div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${isOn ? 'checked' : ''} onchange="onFieldChange(${idx}, 'status', this.checked ? '供應中' : '已下架')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="row" style="align-items:center;gap:10px;margin-top:6px;">
+                        ${it.image ? `<img src="${escapeHtml(it.image)}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;flex-shrink:0;">` : `<div style="width:56px;height:56px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:11px;color:#94a3b8;flex-shrink:0;">無照片</div>`}
+                        <div style="flex:1;">
+                            <!-- ★ 2026-07-22 簡化：手機直接上傳這個方式，因為手機瀏覽器（尤其
+                                 LINE的LIFF）跳出照片選擇器時容易跟全螢幕監控機制打架，搞了
+                                 好幾輪還是不穩定，乾脆拿掉，只留下貼網址這個方式——完全不會
+                                 跳出任何原生視窗，最穩定 -->
+                            <div style="display:flex;gap:6px;margin-bottom:6px;">
+                                <input type="text" id="imgUrlInput${idx}" placeholder="貼上圖片網址" style="flex:1;padding:6px 8px;font-size:12px;border:1.5px solid #e2e8f0;border-radius:6px;">
+                                <button type="button" class="btn" style="padding:6px 10px;font-size:12px;background:#1a3a5c;color:#fff;flex-shrink:0;" onclick="applyMenuImageUrl(${idx})">套用</button>
+                            </div>
+                            ${it.image ? `<button type="button" class="btn" style="padding:6px 12px;font-size:12px;background:#fee2e2;color:#b91c1c;" onclick="removeMenuImage(${idx})">移除照片</button>` : ''}
+                            <span id="imgUploadStatus${idx}" style="font-size:11px;color:#94a3b8;margin-left:6px;"></span>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="field-col">
+                            <span class="field-label">價格</span>
+                            <input type="number" class="num-input" value="${it.price || 0}" oninput="onFieldChange(${idx},'price',this.value); updateMarginDisplay(${idx});" id="priceInput${idx}">
+                        </div>
+                        <div class="field-col">
+                            <span class="field-label">成本（選填，填了才能算毛利率）</span>
+                            <input type="number" class="num-input" value="${it.cost || 0}" oninput="onFieldChange(${idx},'cost',this.value); updateMarginDisplay(${idx});" id="costInput${idx}">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="field-col">
+                            <span class="field-label">每日限量（0＝不限量）</span>
+                            <input type="number" class="num-input" value="${it.safetyStock || 0}" oninput="onFieldChange(${idx},'safetyStock',this.value)">
+                        </div>
+                        <div class="field-col">
+                            <span class="field-label">毛利率</span>
+                            <div id="marginDisplay${idx}" style="padding:9px 10px;font-size:15px;font-weight:900;">${computeMarginText(it.price, it.cost)}</div>
+                        </div>
+                    </div>
+                    ${it.safetyStock > 0 ? `<div class="section-hint" style="margin:6px 4px 0;">今日已賣出 ${it.soldToday || 0} 份，剩餘 ${Math.max(0, it.safetyStock - (it.soldToday || 0))} 份</div>` : ''}
+                    <span class="field-label" style="margin-top:10px;">客製選項（點一下切換要不要套用）</span>
+                    <div class="group-chip-list">${chips}</div>
+                </div>`;
+            });
+        });
+        list.innerHTML = html;
+    }
+
+    // ★ 2026-07-22 新增：即時算出這個品項的毛利率文字，成本沒填（0）就顯示
+    // 「未填成本」，不要顯示100%這種誤導的假數字
+    function computeMarginText(price, cost) {
+        const p = Number(price) || 0;
+        const c = Number(cost) || 0;
+        if (c <= 0 || p <= 0) return '<span style="color:#94a3b8;font-weight:400;font-size:12px;">未填成本</span>';
+        const margin = Math.round(((p - c) / p) * 100);
+        const color = margin >= 50 ? '#16a34a' : (margin >= 30 ? '#d97706' : '#dc2626');
+        return `<span style="color:${color};">${margin}%</span>`;
+    }
+    function updateMarginDisplay(idx) {
+        const priceEl = document.getElementById('priceInput' + idx);
+        const costEl = document.getElementById('costInput' + idx);
+        const displayEl = document.getElementById('marginDisplay' + idx);
+        if (priceEl && costEl && displayEl) {
+            displayEl.innerHTML = computeMarginText(priceEl.value, costEl.value);
+        }
+    }
+
+    function onFieldChange(idx, field, value) {
+        if (field === 'status') menuItems[idx][field] = value;
+        else menuItems[idx][field] = Number(value) || 0;
+        markDirty();
+    }
+
+    // ★ 2026-07-22 簡化：手機直接上傳照片這個方式（選檔案、壓縮、上傳
+    // API），因為手機瀏覽器（尤其LINE的LIFF）跳出照片選擇器時，容易跟
+    // 全螢幕退出保護機制打架，搞了好幾輪還是不穩定，乾脆整套拿掉，
+    // 只留下「貼上網址」這個完全不會跳出任何原生視窗、最穩定的方式。
+
+    // ★ 直接貼上已經在網路上的圖片網址，不用碰手機的檔案選擇器。
+    // 只是單純把網址存進這個品項的image欄位（跟改價格、改名稱一樣，
+    // 要等按最下面「儲存所有變更」才會真的寫進試算表），不用呼叫任何
+    // 上傳API，因為圖片本來就已經在網路上了，不需要我們這邊處理。
+    function applyMenuImageUrl(idx) {
+        const input = document.getElementById('imgUrlInput' + idx);
+        const url = (input.value || '').trim();
+        if (!url) {
+            const statusEl = document.getElementById('imgUploadStatus' + idx);
+            if (statusEl) statusEl.textContent = '❌ 請先貼上網址';
+            return;
+        }
+        if (!/^https?:\/\//i.test(url)) {
+            const statusEl = document.getElementById('imgUploadStatus' + idx);
+            if (statusEl) statusEl.textContent = '❌ 網址要用 http:// 或 https:// 開頭';
+            return;
+        }
+        menuItems[idx].image = url;
+        markDirty();
+        renderMenu();
+    }
+
+    function removeMenuImage(idx) {
+        menuItems[idx].image = '';
+        markDirty();
+        renderMenu();
+    }
+
+    function toggleItemGroup(idx, groupName) {
+        const it = menuItems[idx];
+        if (it._groupSet.has(groupName)) it._groupSet.delete(groupName);
+        else it._groupSet.add(groupName);
+        markDirty();
+        renderMenu();
+    }
+
+    function toggleItemAddons(idx) {
+        const it = menuItems[idx];
+        if (it._groupSet.has('__ADDONS__')) it._groupSet.delete('__ADDONS__');
+        else it._groupSet.add('__ADDONS__');
+        markDirty();
+        renderMenu();
+    }
+
+    function renderAddons() {
+        const list = document.getElementById('addonsList');
+        if (addonsList.length === 0) { list.innerHTML = '<div class="empty-state">尚未設定任何加購項目</div>'; return; }
+        list.innerHTML = addonsList.map((a, idx) => {
+            const isOn = a.status !== '已下架';
+            return `
+            <div class="card">
+                <div class="row">
+                    <div class="field-col">
+                        <span class="field-label">名稱</span>
+                        <input type="text" class="text-input" value="${escapeHtml(a.name)}" oninput="onAddonChange(${idx},'name',this.value)" placeholder="例如：加蛋">
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" ${isOn ? 'checked' : ''} onchange="onAddonChange(${idx}, 'status', this.checked ? '供應中' : '已下架')">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="row">
+                    <div class="field-col">
+                        <span class="field-label">加購價格</span>
+                        <input type="number" class="num-input" value="${a.price || 0}" oninput="onAddonChange(${idx},'price',this.value)">
+                    </div>
+                    <button class="choice-del-btn" onclick="removeAddon(${idx})" title="刪除">✕</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+    function onAddonChange(idx, field, value) {
+        if (field === 'name' || field === 'status') addonsList[idx][field] = value;
+        else addonsList[idx][field] = Number(value) || 0;
+        markDirty();
+    }
+    function addAddonRow() {
+        addonsList.push({ name: '', price: 0, status: '供應中' });
+        markDirty();
+        renderAddons();
+    }
+    function removeAddon(idx) {
+        addonsList.splice(idx, 1);
+        markDirty();
+        renderAddons();
+    }
+
+    function renderGroups() {
+        const list = document.getElementById('groupsList');
+        if (groupsList.length === 0) { list.innerHTML = '<div class="empty-state">尚未設定任何客製選項群組</div>'; return; }
+        list.innerHTML = groupsList.map((g, gIdx) => {
+            const choicesHtml = (g.choices || []).map((cName, cIdx) => `
+                <div class="choice-row">
+                    <input type="text" class="text-input" value="${escapeHtml(cName)}" placeholder="選項名稱，例如：去冰" oninput="onChoiceChange(${gIdx},${cIdx},this.value)">
+                    <button class="choice-del-btn" onclick="removeChoice(${gIdx},${cIdx})" title="刪除">✕</button>
+                </div>`).join('');
+            return `
+            <div class="card">
+                <div class="row">
+                    <div class="field-col">
+                        <span class="field-label">這組客製選項的名稱</span>
+                        <input type="text" class="text-input" value="${escapeHtml(g.name)}" placeholder="例如：冰塊、辣度" oninput="onGroupChange(${gIdx},'name',this.value)">
+                    </div>
+                    <button class="group-del-btn" onclick="removeGroup(${gIdx})">刪除整組</button>
+                </div>
+                <div class="row">
+                    <label class="toggle-switch">
+                        <input type="checkbox" ${g.required ? 'checked' : ''} onchange="onGroupChange(${gIdx},'required', this.checked ? 1 : 0)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="item-name" style="font-size:13px;">客人點餐時「一定要選」（關掉＝可以不選）</span>
+                </div>
+                <span class="field-label" style="margin-top:10px;">選項內容（不支援個別加價，加價請用「加購項目」）</span>
+                ${choicesHtml}
+                <button class="add-choice-btn" onclick="addChoice(${gIdx})">＋ 新增一個選項</button>
+            </div>`;
+        }).join('');
+    }
+    function onGroupChange(gIdx, field, value) {
+        groupsList[gIdx][field] = value;
+        markDirty();
+    }
+    function onChoiceChange(gIdx, cIdx, value) {
+        groupsList[gIdx].choices[cIdx] = value;
+        markDirty();
+    }
+    function addChoice(gIdx) {
+        groupsList[gIdx].choices.push('');
+        markDirty();
+        renderGroups();
+    }
+    function removeChoice(gIdx, cIdx) {
+        groupsList[gIdx].choices.splice(cIdx, 1);
+        markDirty();
+        renderGroups();
+    }
+    function addGroupRow() {
+        groupsList.push({ name: '', choices: [''], limit: 1, required: 1, breakfastDefault: '', normalDefault: '' });
+        markDirty();
+        renderGroups();
+    }
+    function removeGroup(gIdx) {
+        const removedName = groupsList[gIdx].name;
+        groupsList.splice(gIdx, 1);
+        // 這組被刪掉了，順便把所有品項裡有勾選這組的也一併取消勾選，避免存檔時
+        // 品項還留著一個「參照到已經不存在的群組」的無效設定
+        menuItems.forEach(it => { it._groupSet.delete(removedName); });
+        markDirty();
+        renderGroups();
+        renderMenu();
+    }
+
+    async function saveAllChanges() {
+        if (!isDirty) { showToast('沒有變更'); return; }
+
+        // ★ 客製選項群組存檔格式：choices 目前只存名稱（不支援加價，見上方提示），
+        // 用逗號分隔存進「選項清單」欄位。
+        const specsForSave = groupsList
+            .filter(g => (g.name || '').trim())
+            .map(g => ({
+                name: g.name.trim(),
+                choices: (g.choices || []).map(c => (c || '').trim()).filter(Boolean).join(','),
+                limit: g.limit || 1,
+                required: g.required ? 1 : 0,
+                breakfastDefault: g.breakfastDefault || '',
+                normalDefault: g.normalDefault || ''
+            }));
+
+        const addonsForSave = addonsList.filter(a => (a.name || '').trim());
+
+        // ★ 2026-07-20 修正：客人點餐頁面實際要求 options 欄位是 JSON 陣列，內容是
+        // 「這組客製選項在上面 specsForSave 陣列裡排第幾個」的索引鍵（spec_0、
+        // spec_1...），不是名稱文字，也不是逗號分隔——這裡照真正的格式組出來。
+        // 用 specsForSave（篩選過、真正會存進去的那份）建立「名稱→索引」對照表，
+        // 確保索引跟客人點餐頁面之後讀到的順序完全一致；如果某個品項勾選的群組
+        // 在存檔時被刪掉了（名稱在對照表裡找不到），就自動跳過，不會存進壞掉的索引。
+        const nameToIndex = {};
+        specsForSave.forEach((s, i) => { nameToIndex[s.name] = i; });
+
+        const itemsForSave = menuItems.map(it => {
+            const { _groupSet, ...rest } = it;
+            const groupsArr = [];
+            _groupSet.forEach(name => {
+                if (name === '__ADDONS__') return;
+                if (nameToIndex.hasOwnProperty(name)) groupsArr.push('spec_' + nameToIndex[name]);
+            });
+            if (_groupSet.has('__ADDONS__')) groupsArr.push('addons');
+            rest.options = JSON.stringify(groupsArr);
+            return rest;
+        });
+
+        try {
+            // ★ 2026-07-20 修正：原本這三支存檔都用網址帶參數（GET），品項一多、
+            // 中文字一多，網址編碼後長度暴增，容易被瀏覽器判定「Failed to
+            // fetch」（尤其分類/名稱都是中文，一個字編碼後膨脹成9個字元）。
+            // 改成用 POST 送資料，不受網址長度限制。Content-Type用
+            // 'text/plain;charset=utf-8'是GAS已知的眉角——用application/json
+            // 瀏覽器會先發CORS預檢請求，GAS的doPost不會正確回應，導致整個
+            // 請求失敗；改用text/plain可以繞開，後端一樣能正常解析JSON內容。
+            const postJson = async (action, extra) => {
+                const resp = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action, password, operator: INJECTED_OPERATOR, ...extra })
+                });
+                return await resp.json();
+            };
+
+            const menuResult = await postJson('updateMenu', { items: itemsForSave });
+            if (menuResult.status !== 'success') { showToast('❌ ' + menuResult.message); return; }
+
+            const addonsResult = await postJson('updateAddons', { addons: addonsForSave });
+            if (addonsResult.status !== 'success') { showToast('❌ ' + addonsResult.message); return; }
+
+            const specsResult = await postJson('updateOptionSpecs', { specs: specsForSave });
+            if (specsResult.status !== 'success') { showToast('❌ ' + specsResult.message); return; }
+
+            showToast('✅ 已儲存所有變更');
+            isDirty = false;
+            document.getElementById('saveBar').classList.remove('show');
+            // ★ 存檔後重新整份讀回來：因為索引鍵是依照「存檔當下」specsForSave的
+            // 順序算出來的，重新載入才能確保畫面上的勾選狀態跟伺服器端實際存的
+            // 內容100%一致（尤其是剛剛新增/刪除過群組的情況）
+            loadAll();
+        } catch (err) {
+            showToast('❌ 儲存失敗：' + err.message);
+        }
+    }
+
+    document.getElementById('passwordInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter') tryLogin();
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>咱的台雞店 - 訂單看板</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Microsoft JhengHei','Segoe UI',Arial,sans-serif; }
+    :root {
+        --primary:#4f46e5; --success:#16a34a; --warning:#d97706; --danger:#dc2626;
+        --light:#f8f9fa; --dark:#1e293b; --gray:#64748b; --border:#e2e8f0;
+    }
+    body { background:#eef1f8; min-height:100vh; padding:16px; }
+    .wrap { max-width:1400px; margin:0 auto; }
+
+    .login-card {
+        max-width:380px; margin:60px auto; background:#fff; border-radius:20px;
+        box-shadow:0 15px 30px rgba(0,0,0,.1); padding:36px 28px; text-align:center;
+    }
+    .login-card input {
+        width:100%; padding:12px 15px; border:2px solid var(--border); border-radius:10px;
+        font-size:15px; margin:16px 0; text-align:center;
+    }
+    .btn { border:none; border-radius:10px; font-weight:700; cursor:pointer; transition:.15s; }
+    .btn-primary { background:var(--primary); color:#fff; padding:12px 20px; font-size:15px; }
+    .error-text { color:var(--danger); font-size:13px; min-height:18px; }
+
+    .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+    .topbar h1 { font-size:22px; color:var(--dark); }
+    .topbar-actions { display:flex; gap:8px; align-items:center; }
+    .refresh-btn { background:#fff; border:2px solid var(--border); padding:9px 16px; border-radius:10px; font-weight:700; cursor:pointer; }
+    .auto-refresh-label { font-size:13px; color:var(--gray); display:flex; align-items:center; gap:6px; }
+
+    .filter-tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+    .filter-tab {
+        padding:9px 16px; border-radius:20px; border:2px solid var(--border); background:#fff;
+        font-weight:700; font-size:13px; cursor:pointer; color:var(--gray);
+    }
+    .filter-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+    .order-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:14px; }
+    .order-card {
+        background:#fff; border-radius:16px; box-shadow:0 4px 14px rgba(0,0,0,.06);
+        padding:16px 18px; border-left:6px solid var(--border);
+    }
+    .order-card.status-pending { border-left-color:var(--danger); }
+    .order-card.status-confirmed { border-left-color:var(--warning); }
+    .order-card.status-making { border-left-color:var(--primary); }
+    .order-card.status-done { border-left-color:var(--success); opacity:.7; }
+    .order-card.status-expired { border-left-color:var(--danger); opacity:.6; }
+    .order-card.status-cancelled { border-left-color:#cbd5e1; opacity:.5; }
+
+    .order-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:10px; }
+    .order-number { font-weight:900; font-size:15px; color:var(--dark); }
+    .order-time { font-size:11px; color:var(--gray); margin-top:2px; }
+    .queue-badge {
+        width:44px; height:44px; border-radius:50%; flex-shrink:0;
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        border:3px solid var(--dark); color:var(--dark); font-weight:900; line-height:1;
+    }
+    .queue-badge .queue-label { font-size:8px; font-weight:700; opacity:.7; margin-bottom:1px; }
+    .queue-badge .queue-num { font-size:16px; }
+    .queue-badge.cancelled { border-color:#cbd5e1; color:#cbd5e1; }
+
+    /* ★ 匯款截圖縮圖：放在取餐號旁邊，點了可以放大看 */
+    .screenshot-thumb {
+        width:44px; height:44px; border-radius:10px; flex-shrink:0;
+        object-fit:cover; border:2px solid #86efac; cursor:pointer;
+        background:#f1f5f9;
+    }
+    .screenshot-missing-badge {
+        width:44px; height:44px; border-radius:10px; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+        font-size:9px; font-weight:700; text-align:center; line-height:1.3;
+        background:#fee2e2; color:#991b1b; border:2px solid #fca5a5; padding:2px;
+    }
+    .screenshot-lightbox {
+        display:none; position:fixed; inset:0; background:rgba(15,23,42,.85); z-index:20000;
+        align-items:center; justify-content:center; padding:24px; cursor:zoom-out;
+    }
+    .screenshot-lightbox.show { display:flex; }
+    .screenshot-lightbox img { max-width:100%; max-height:100%; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,.4); }
+
+    .order-head-main { flex:1; min-width:0; }
+    .status-badge { font-size:12px; font-weight:700; padding:4px 10px; border-radius:20px; white-space:nowrap; }
+    .status-badge.pending { background:#fee2e2; color:#991b1b; }
+    .status-badge.confirmed { background:#fef3c7; color:#92400e; }
+    .status-badge.making { background:#e0e7ff; color:#3730a3; }
+    .status-badge.done { background:#dcfce7; color:#166534; }
+    .status-badge.expired { background:#fee2e2; color:#991b1b; }
+    .status-badge.cancelled { background:#f1f5f9; color:#94a3b8; }
+
+    .order-info { font-size:13px; color:#475569; line-height:1.7; margin-bottom:8px; }
+    .order-info b { color:var(--dark); }
+    .order-items { font-size:13px; background:var(--light); border-radius:8px; padding:8px 10px; margin-bottom:10px; color:#334155; line-height:1.6; }
+    .order-total { font-size:18px; font-weight:900; color:var(--primary); margin-bottom:10px; }
+    .admin-note { font-size:12px; color:var(--danger); background:#fef2f2; border-radius:6px; padding:6px 8px; margin-bottom:10px; }
+
+    .order-actions { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; }
+    .action-btn { padding:8px 4px; border-radius:8px; border:2px solid transparent; font-weight:700; font-size:12px; cursor:pointer; text-align:center; }
+    .action-btn.btn-unpaid { background:#fee2e2; color:#991b1b; }
+    .action-btn.btn-paid { background:#fef3c7; color:#92400e; }
+    .action-btn.btn-preparing { background:#e0e7ff; color:#3730a3; }
+    .action-btn.btn-done { background:#dcfce7; color:#166534; }
+    .action-btn.btn-cancel { background:#fff; color:var(--danger); border:1.5px solid var(--danger); }
+    .action-btn.active { box-shadow:0 0 0 3px rgba(0,0,0,.15); transform:scale(1.05); }
+    .action-btn.disabled { opacity:.35; pointer-events:none; }
+
+    .empty-state { text-align:center; padding:60px 20px; color:var(--gray); }
+    .loading { text-align:center; padding:60px; color:var(--gray); }
+    .notice { position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:9999;
+        padding:12px 20px; border-radius:10px; font-size:14px; font-weight:700; display:none; box-shadow:0 8px 20px rgba(0,0,0,.15); }
+    .notice.show { display:block; }
+    .notice.ok { background:#dcfce7; color:#166534; }
+    .notice.err { background:#fee2e2; color:#991b1b; }
+
+    /* ★ 桌號搜尋：客人點餐時把桌號打在「訂單備註」欄位裡（例如「5號桌」），
+       店員這裡輸入桌號，比對備註欄文字找出同一桌的所有訂單，方便一次列印出餐單。
+       這是純文字比對，不用另外改資料庫欄位，也不用改點餐系統前端。 */
+    .table-search-bar {
+        background:#fff; border-radius:14px; padding:14px 16px; margin-bottom:16px;
+        display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+        box-shadow:0 4px 14px rgba(0,0,0,.06);
+    }
+    .table-search-bar input {
+        flex:1; min-width:160px; padding:10px 14px; border:2px solid var(--border);
+        border-radius:10px; font-size:15px;
+    }
+    .table-search-bar .hint { font-size:12px; color:var(--gray); width:100%; }
+
+    .table-modal-overlay {
+        display:none; position:fixed; inset:0; background:rgba(15,23,42,.6); z-index:10000;
+        align-items:center; justify-content:center; padding:20px;
+    }
+    .table-modal-overlay.show { display:flex; }
+    .table-modal {
+        background:#fff; border-radius:18px; max-width:520px; width:100%;
+        max-height:88vh; overflow-y:auto; padding:24px; box-shadow:0 20px 50px rgba(0,0,0,.3);
+    }
+    .table-modal-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+    .table-modal-head h3 { font-size:19px; color:var(--dark); }
+    .table-order-block {
+        border:1.5px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:12px;
+    }
+    .table-order-block .to-head { display:flex; justify-content:space-between; font-size:13px; color:var(--gray); margin-bottom:6px; }
+    .table-order-block .to-items { font-size:14px; color:#334155; line-height:1.7; margin-bottom:6px; }
+    .table-order-block .to-total { font-weight:900; color:var(--primary); font-size:16px; }
+    .table-order-block .to-note { font-size:12px; color:#92400e; background:#fef3c7; border-radius:6px; padding:4px 8px; margin-top:6px; }
+
+    /* ★ 列印時：只留桌號查詢彈窗的內容，其他畫面（看板、按鈕）全部隱藏 */
+    @media print {
+        body * { visibility: hidden; }
+        #tableModal, #tableModal * { visibility: visible; }
+        #tableModal { position: absolute; top: 0; left: 0; width: 100%; }
+        .table-modal-overlay { background: none; padding: 0; }
+        .table-modal { box-shadow: none; max-height: none; max-width: 100%; }
+        .no-print { display: none !important; }
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <div class="login-card" id="loginBox">
+        <div style="font-size:40px;margin-bottom:10px;">🔒</div>
+        <h2 style="margin-bottom:6px;">咱的台雞店・訂單看板</h2>
+        <p style="color:var(--gray);font-size:14px;">一個畫面看完所有訂單，不用開好幾個LINE視窗</p>
+        <input type="password" id="passwordInput" placeholder="管理密碼" autocomplete="off">
+        <button class="btn btn-primary" style="width:100%;" id="loginBtn" onclick="tryLogin()">登入看板</button>
+        <div class="error-text" id="loginError"></div>
+    </div>
+
+    <div id="dashboardArea" style="display:none;">
+        <div class="topbar">
+            <h1 id="pageTitle">📋 訂單看板</h1>
+            <div class="topbar-actions">
+                <label class="auto-refresh-label">
+                    <input type="checkbox" id="soundToggle" checked> 🔔 新訂單提醒音效
+                </label>
+                <label class="auto-refresh-label">
+                    <input type="checkbox" id="autoRefreshToggle" checked> 每30秒自動更新
+                </label>
+                <button class="refresh-btn" onclick="loadCurrentView()">🔄 立即重新整理</button>
+            </div>
+        </div>
+
+        <!-- ★ 2026-07-22 新增：公休/營業中開關，切換後客人點餐頁面會立刻反映 -->
+        <div id="storeStatusBar" style="display:flex;align-items:center;gap:10px;background:#f0f0f0;padding:10px 14px;border-radius:10px;margin-bottom:10px;">
+            <span id="storeStatusLabel" style="font-weight:700;">🟢 目前：營業中</span>
+            <button class="btn" id="storeStatusToggleBtn" onclick="toggleStoreStatus()" style="margin-left:auto;background:#e74c3c;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:700;cursor:pointer;">設為公休</button>
+        </div>
+
+        <!-- ★ 頂層切換：訂單管理／儲值管理，兩個是完全獨立的資料表，不會互相干擾 -->
+        <div class="filter-tabs" style="margin-bottom:10px;">
+            <button class="filter-tab active" id="viewTabOrders" onclick="setView('orders')">📋 訂單管理</button>
+            <button class="filter-tab" id="viewTabTopup" onclick="setView('topup')">💰 儲值管理</button>
+            <button class="filter-tab" id="viewTabScreenshots" onclick="setView('screenshots')">💳 付款回報</button>
+            <button class="filter-tab" id="viewTabReport" onclick="setView('report')">📊 營業報表</button>
+            <button class="filter-tab" id="viewTabSettings" onclick="setView('settings')">⚙️ 系統設定</button>
+        </div>
+
+        <!-- ★ 2026-07-22 新增：系統設定（功能開關＋排程公休＋健康度＋退款＋匯出） -->
+        <div id="settingsView" style="display:none;">
+            <div class="section-label" style="margin-bottom:8px;">🩺 系統健康度</div>
+            <div id="healthDashboard" style="margin-bottom:20px;"></div>
+
+            <div class="section-label" style="margin-bottom:8px;">🔧 功能開關</div>
+            <div class="hint" style="margin-bottom:10px;">關閉的功能，客人/店家都看不到、也用不到，不用擔心關掉會出錯——單純是「先不啟用」而已，之後隨時可以再打開。</div>
+            <div id="featureTogglesList" style="margin-bottom:20px;"></div>
+
+            <div class="section-label" style="margin-bottom:8px;">📅 排程公休</div>
+            <div class="hint" style="margin-bottom:10px;">設定好之後，符合的日期會自動變成公休，不用每次臨時手動點「設為公休」。</div>
+            <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:20px;">
+                <div style="font-weight:700;font-size:13px;margin-bottom:8px;">每週固定公休日</div>
+                <div id="weeklyClosedDaysList" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
+                <div style="font-weight:700;font-size:13px;margin:14px 0 8px;">預先排定的公休區間（例如過年連休）</div>
+                <div id="closureRangesList"></div>
+                <button onclick="addClosureRange()" style="margin-top:6px;padding:8px 14px;border:1.5px dashed var(--border);background:none;border-radius:8px;color:var(--gray);font-size:13px;font-weight:700;cursor:pointer;">＋新增公休區間</button>
+                <button onclick="saveClosureSchedule()" style="display:block;margin-top:14px;width:100%;padding:10px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-weight:700;cursor:pointer;">💾 儲存排程公休設定</button>
+            </div>
+
+            <div class="section-label" style="margin-bottom:8px;">💸 退款/補償紀錄</div>
+            <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:20px;">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+                    <input type="text" id="refundOrderNumber" placeholder="訂單編號" style="flex:1;min-width:120px;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+                    <input type="number" id="refundAmount" placeholder="退款金額" style="width:110px;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+                </div>
+                <input type="text" id="refundReason" placeholder="退款原因（例如：出餐錯誤）" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:10px;">
+                <button onclick="addRefundRecord()" style="width:100%;padding:10px;border:none;border-radius:8px;background:var(--danger);color:#fff;font-weight:700;cursor:pointer;">登記這筆退款</button>
+                <div id="refundRecordsList" style="margin-top:14px;"></div>
+            </div>
+
+            <div class="section-label" style="margin-bottom:8px;">📤 訂單匯出</div>
+            <div style="background:#fff;border-radius:12px;padding:14px;">
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+                    <label style="font-size:12px;color:var(--gray);">從</label>
+                    <input type="date" id="exportFromDate" style="padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+                    <label style="font-size:12px;color:var(--gray);">到</label>
+                    <input type="date" id="exportToDate" style="padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+                </div>
+                <button onclick="exportOrdersCsv()" style="width:100%;padding:10px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-weight:700;cursor:pointer;">📥 匯出這段期間的訂單（CSV，可用Excel開啟）</button>
+            </div>
+        </div>
+
+        <div id="ordersView">
+            <!-- ★ 桌號搜尋：比對「訂單備註」欄位裡的文字，找出同一桌的所有訂單 -->
+            <div class="table-search-bar">
+                <input type="text" id="tableSearchInput" placeholder="輸入桌號，例如：5" onkeydown="if(event.key==='Enter')searchByTable()">
+                <button class="btn btn-primary" onclick="searchByTable()">🔍 查這桌的餐點</button>
+                <div class="hint">💡 客人點餐時要先請他把桌號打在「訂單備註」欄位裡（例如「5號桌」），這裡才查得到</div>
+            </div>
+
+            <div class="filter-tabs" id="filterTabs">
+                <button class="filter-tab active" data-filter="全部" onclick="setFilter('全部')">全部</button>
+                <button class="filter-tab" data-filter="進行中" onclick="setFilter('進行中')">🔥 進行中</button>
+                <button class="filter-tab" data-filter="未匯款" onclick="setFilter('未匯款')">🔴 未匯款</button>
+                <button class="filter-tab" data-filter="已匯款" onclick="setFilter('已匯款')">🟡 已匯款</button>
+                <button class="filter-tab" data-filter="準備中" onclick="setFilter('準備中')">🔵 準備中</button>
+                <button class="filter-tab" data-filter="已完成" onclick="setFilter('已完成')">🟢 已完成</button>
+            </div>
+
+            <div class="loading" id="loadingArea">載入訂單中...</div>
+            <div class="order-grid" id="orderGrid"></div>
+            <div class="empty-state" id="emptyState" style="display:none;">目前沒有符合條件的訂單 🎉</div>
+        </div>
+
+        <!-- ★ 儲值管理：客人送出儲值申請後，要核對過匯款截圖才按「確認入帳」，餘額才會真的算進去 -->
+        <div id="topupView" style="display:none;">
+            <div class="filter-tabs" id="topupFilterTabs">
+                <button class="filter-tab active" data-topup-filter="待確認" onclick="setTopupFilter('待確認')">🟡 待確認</button>
+                <button class="filter-tab" data-topup-filter="已確認" onclick="setTopupFilter('已確認')">🟢 已確認</button>
+                <button class="filter-tab" data-topup-filter="已取消" onclick="setTopupFilter('已取消')">⚪ 已駁回</button>
+                <button class="filter-tab" data-topup-filter="全部" onclick="setTopupFilter('全部')">全部</button>
+            </div>
+            <div class="loading" id="topupLoadingArea">載入儲值記錄中...</div>
+            <div class="order-grid" id="topupGrid"></div>
+            <div class="empty-state" id="topupEmptyState" style="display:none;">目前沒有符合條件的儲值記錄 🎉</div>
+        </div>
+
+        <!-- ★ 付款回報：客人自己填「取餐號＋電話後三碼＋金額」申報付款（取代截圖上傳），
+             按回報時間排序，方便對照銀行App的轉帳明細由上往下核對 -->
+        <div id="screenshotsView" style="display:none;">
+            <div class="hint" style="margin-bottom:10px;">💡 系統已強制比對「取餐號＋電話後三碼＋金額」三項都對才會收單，這裡看到的都是已比對成功的，銀行末三碼欄位是客人自願填的，方便你自己核對銀行帳戶。預設由新到舊排序</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+                <label style="font-size:13px;color:var(--gray);">日期區間：</label>
+                <input type="date" id="reportDateFrom" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+                <span style="color:var(--gray);">～</span>
+                <input type="date" id="reportDateTo" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+                <button onclick="loadScreenshotsOverview(false)" style="padding:8px 16px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-weight:700;font-size:13px;cursor:pointer;">🔍 篩選</button>
+                <button onclick="document.getElementById('reportDateFrom').value='';document.getElementById('reportDateTo').value='';loadScreenshotsOverview(false);" style="padding:8px 16px;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--gray);font-weight:700;font-size:13px;cursor:pointer;">清除日期</button>
+                <button onclick="paymentReportSortKeys=[];loadScreenshotsOverview(false);" style="padding:8px 16px;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--gray);font-weight:700;font-size:13px;cursor:pointer;">清除排序</button>
+            </div>
+            <div class="hint" style="margin-bottom:10px;font-size:12px;">💡 點表格欄位標題可以排序，可以依序點多個欄位組合排序（例如先點「電話後3碼」再點「回報時間」，會先依電話分組，組內再依時間排序），點同一個欄位會切換由大到小／由小到大，「清除排序」恢復預設（新到舊）</div>
+            <div class="loading" id="screenshotsLoadingArea">載入回報中...</div>
+            <div id="screenshotsGrid"></div>
+            <div class="empty-state" id="screenshotsEmptyState" style="display:none;">目前沒有付款回報 🎉</div>
+        </div>
+
+        <!-- ★ 2026-07-22 新增：簡易營業報表 -->
+        <div id="reportView" style="display:none;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+                <label style="font-size:13px;color:var(--gray);">查詢日期：</label>
+                <input type="date" id="reportSummaryDate" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+                <button onclick="loadSalesSummary()" style="padding:8px 16px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-weight:700;font-size:13px;cursor:pointer;">🔍 查詢</button>
+                <button onclick="document.getElementById('reportSummaryDate').valueAsDate=new Date();loadSalesSummary();" style="padding:8px 16px;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--gray);font-weight:700;font-size:13px;cursor:pointer;">回到今天</button>
+            </div>
+            <div class="loading" id="reportLoadingArea">載入中...</div>
+            <div id="reportSummaryContent"></div>
+        </div>
+    </div>
+</div>
+
+<div class="notice" id="notice"></div>
+
+<!-- ★ 截圖放大檢視：點縮圖跳出來看大圖，點畫面任何地方關閉 -->
+<div class="screenshot-lightbox" id="screenshotLightbox" onclick="closeScreenshotLightbox()">
+    <img id="screenshotLightboxImg" src="" alt="匯款截圖">
+</div>
+
+<!-- ★ 桌號搜尋結果彈窗：查到的訂單列在這裡，按列印只會印出這個彈窗的內容 -->
+<div class="table-modal-overlay" id="tableModalOverlay">
+    <div class="table-modal" id="tableModal">
+        <div class="table-modal-head">
+            <h3 id="tableModalTitle">🍽️ 桌號查詢結果</h3>
+            <div class="no-print" style="display:flex;gap:8px;">
+                <button class="btn btn-primary" onclick="window.print()">🖨️ 列印</button>
+                <button class="btn" style="background:var(--light);color:var(--gray);padding:12px 16px;" onclick="closeTableModal()">✕</button>
+            </div>
+        </div>
+        <div id="tableModalBody"></div>
+    </div>
+</div>
+
+<script>
+    // ⚠️ 部署後，把下面這行改成你自己的 Google Apps Script 網址（跟訂餐表單用同一個網址）
+    const WEB_APP_URL = '/api/gas';
+
+    let adminPassword = '';
+    let allOrders = [];
+    let currentFilter = '全部';
+    let autoRefreshTimer = null;
+    let currentView = 'orders'; // 'orders' 或 'topup'
+    let allTopupRecords = [];
+    let currentTopupFilter = '待確認';
+    let knownOrderNumbers = null; // null=尚未初始化（第一次載入不算新訂單，避免一登入就狂響）
+    let audioCtx = null; // Web Audio API 的 context，要等使用者互動過才能建立/播放（瀏覽器限制）
+    // ★ 2026-07-20 新增：密碼一旦被後端判定錯誤，就把這個旗標設true，30秒自動
+    // 更新看到這個旗標為true就直接跳過、不送出API請求。原本的寫法是「不管密碼
+    // 對不對，每30秒照樣打一次API」，如果登入時密碼剛好打錯又沒被擋下來，就會
+    // 在使用者沒發現的情況下，每30秒用錯的密碼打一次後端，很快就把Code.gs那邊
+    // 「連續錯8次鎖5分鐘」的額度用完（而且這個額度是所有管理頁面共用同一桶，
+    // 不是這頁自己獨立的）。加這個旗標之後，密碼一旦被判定錯誤就整個暫停自動
+    // 更新，等使用者重新輸入正確密碼、成功登入一次之後才恢復。
+    let passwordInvalid = false;
+
+    // 用 Web Audio API 產生「叮咚」提示音，不用另外準備音檔、離線也能用
+    function playNewOrderSound() {
+        if (!document.getElementById('soundToggle').checked) return;
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            // 兩個音符（叮、咚），比單音明顯，但不會太吵
+            [[880, 0], [660, 0.15]].forEach(([freq, delay]) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.0001, now + delay);
+                gain.gain.exponentialRampToValueAtTime(0.35, now + delay + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.35);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now + delay);
+                osc.stop(now + delay + 0.4);
+            });
+        } catch (err) {
+            console.warn('提示音播放失敗（不影響訂單功能）：', err);
+        }
+    }
+
+    // ★ 2026-07-20 修正：原本這裡只檢查「有沒有打字」就直接放行進畫面，密碼對不對
+    // 完全沒驗證，要等到背景抓訂單資料時才會發現密碼錯了——但那時候使用者已經
+    // 看不到登入畫面、很容易沒注意到，加上30秒自動更新會一直重打，密碼錯誤額度
+    // 很快就會被用完。改成登入這一刻就先真的打一次API驗證密碼，驗證通過才讓
+    // 使用者進入看板畫面，按鈕在驗證期間顯示「登入中...」避免使用者手滑連按。
+    async function tryLogin() {
+        const pw = document.getElementById('passwordInput').value.trim();
+        const errEl = document.getElementById('loginError');
+        const btnEl = document.getElementById('loginBtn');
+        errEl.textContent = '';
+        if (!pw) { errEl.textContent = '請輸入密碼'; return; }
+
+        if (btnEl) { btnEl.disabled = true; btnEl.textContent = '登入中...'; }
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getOrders&password=${encodeURIComponent(pw)}`);
+            const data = await resp.json();
+            if (data.status !== 'success') {
+                errEl.textContent = data.message || '登入失敗，請確認密碼';
+                return;
+            }
+        } catch (err) {
+            errEl.textContent = '無法連線：' + err.message;
+            return;
+        } finally {
+            if (btnEl) { btnEl.disabled = false; btnEl.textContent = '登入看板'; }
+        }
+
+        adminPassword = pw;
+        passwordInvalid = false;
+        document.getElementById('loginBox').style.display = 'none';
+        document.getElementById('dashboardArea').style.display = 'block';
+        // 趁按鈕點擊這個「使用者手勢」的時機先建立AudioContext，
+        // 之後30秒自動更新（沒有使用者手勢）才能正常播放提示音，不會被瀏覽器擋掉
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) {}
+        loadCurrentView();
+        startAutoRefresh();
+    }
+
+    // ★ 2026-07-20 新增：整合進「管理總覽」框架時，父頁面會把這串換成已經驗證過
+    // 的真實密碼，這裡偵測到「不是原本的預留位置文字」就直接跳過登入畫面、不再
+    // 另外呼叫一次驗證API（父頁面已經驗證過了，這裡直接信任）。提示音的
+    // AudioContext沒有使用者手勢可以建立，會在使用者第一次點擊畫面任何地方時
+    // 才補建立，不影響其他功能。
+    const INJECTED_PASSWORD = '%%PW%%';
+    const INJECTED_OPERATOR = '%%OPERATOR%%'; // ★ 2026-07-21 新增：操作紀錄用的登入者名稱
+    // ★ 2026-07-22 重大bug修正：原本這裡直接寫 if (INJECTED_PASSWORD !== '%%PW%%')，
+    // 但 admin_hub_basic.html 那邊的替換邏輯是「整份文件裡所有 %%PW%% 都换成
+    // 真正密碼」，這一行比對用的 '%%PW%%' 字面文字，也會被一起換掉，換完之後
+    // 兩邊變成同一組密碼字串，比對永遠判定為「相等」，導致自動登入判斷失效，
+    // 系統誤以為密碼沒有被注入，才會又跳出這個工具自己的獨立登入畫面，要求
+    // 使用者重新輸入一次密碼。改用「執行階段才組合出來的字串」當比對基準，
+    // 這個字串在原始檔案文字裡，不會以「%%PW%%」這樣連續完整的字元出現，
+    // 所以不會被前面那個整批替換的動作誤傷。
+    const UNINJECTED_MARKER = '%%' + 'PW' + '%%';
+    if (INJECTED_PASSWORD !== UNINJECTED_MARKER) {
+        adminPassword = INJECTED_PASSWORD;
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('dashboardArea').style.display = 'block';
+            loadCurrentView();
+            startAutoRefresh();
+            fetchStoreStatus(); // ★ 2026-07-22 新增：載入時先確認目前公休狀態
+            loadCustomerNotes(); // ★ 2026-07-22 新增：載入熟客備註
+            const buildAudioCtxOnce = () => {
+                try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) {}
+                document.removeEventListener('click', buildAudioCtxOnce);
+            };
+            document.addEventListener('click', buildAudioCtxOnce);
+        });
+    }
+
+    // ★ 2026-07-22 新增：熟客備註載入與儲存
+    async function loadCustomerNotes() {
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getCustomerNotes&password=${encodeURIComponent(adminPassword)}`);
+            const data = await resp.json();
+            if (data.status === 'success') {
+                window.customerNotes = data.notes || {};
+            }
+        } catch (err) {
+            console.warn('讀取顧客備註失敗：', err.message);
+        }
+    }
+
+    async function saveCustomerNote(phone, rowNumber) {
+        const input = document.getElementById('custNote_' + rowNumber);
+        const note = (input.value || '').trim();
+        try {
+            const resp = await fetch(WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'setCustomerNote', password: adminPassword, operator: INJECTED_OPERATOR, phone, note })
+            });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                window.customerNotes = window.customerNotes || {};
+                if (note) window.customerNotes[phone] = note; else delete window.customerNotes[phone];
+                showNotice('✅ 備註已儲存', 'ok');
+            } else {
+                showNotice('❌ ' + data.message, 'err');
+            }
+        } catch (err) {
+            showNotice('儲存失敗：' + err.message, 'err');
+        }
+    }
+
+    // ★ 2026-07-22 新增：公休/營業中查詢與切換
+    let currentStoreIsOpen = true;
+    async function fetchStoreStatus() {
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getStoreStatus`);
+            const data = await resp.json();
+            if (data.status === 'success') {
+                currentStoreIsOpen = data.isOpen;
+                renderStoreStatus();
+            }
+        } catch (err) {
+            console.warn('查詢公休狀態失敗：', err.message);
+        }
+    }
+
+    function renderStoreStatus() {
+        const label = document.getElementById('storeStatusLabel');
+        const btn = document.getElementById('storeStatusToggleBtn');
+        if (!label || !btn) return;
+        if (currentStoreIsOpen) {
+            label.textContent = '🟢 目前：營業中';
+            btn.textContent = '設為公休';
+            btn.style.background = '#e74c3c';
+        } else {
+            label.textContent = '🔴 目前：公休中（客人無法送出訂單）';
+            btn.textContent = '恢復營業';
+            btn.style.background = '#27ae60';
+        }
+    }
+
+    async function toggleStoreStatus() {
+        const nextIsOpen = !currentStoreIsOpen;
+        const confirmMsg = nextIsOpen
+            ? '確定要恢復營業嗎？客人之後就能正常送出訂單。'
+            : '確定要設為公休嗎？設定後客人會看到公休提示，沒辦法送出新訂單。';
+        if (!(await customConfirm(confirmMsg))) return;
+        try {
+            const url = `${WEB_APP_URL}?action=setStoreStatus&password=${encodeURIComponent(adminPassword)}&isOpen=${nextIsOpen}&operator=${encodeURIComponent(INJECTED_OPERATOR)}`;
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (data.status === 'success') {
+                currentStoreIsOpen = data.isOpen;
+                renderStoreStatus();
+                showNotice(nextIsOpen ? '✅ 已恢復營業' : '✅ 已設為公休', 'ok');
+            } else {
+                showNotice('❌ ' + data.message, 'err');
+            }
+        } catch (err) {
+            showNotice('設定失敗：' + err.message, 'err');
+        }
+    }
+
+    // ★ 頂層切換：訂單管理／儲值管理
+    function setView(view) {
+        currentView = view;
+        document.getElementById('viewTabOrders').classList.toggle('active', view === 'orders');
+        document.getElementById('viewTabTopup').classList.toggle('active', view === 'topup');
+        document.getElementById('viewTabScreenshots').classList.toggle('active', view === 'screenshots');
+        document.getElementById('viewTabReport').classList.toggle('active', view === 'report');
+        document.getElementById('viewTabSettings').classList.toggle('active', view === 'settings');
+        document.getElementById('ordersView').style.display = view === 'orders' ? 'block' : 'none';
+        document.getElementById('topupView').style.display = view === 'topup' ? 'block' : 'none';
+        document.getElementById('screenshotsView').style.display = view === 'screenshots' ? 'block' : 'none';
+        document.getElementById('reportView').style.display = view === 'report' ? 'block' : 'none';
+        document.getElementById('settingsView').style.display = view === 'settings' ? 'block' : 'none';
+        document.getElementById('pageTitle').textContent =
+            view === 'orders' ? '📋 訂單看板' : (view === 'topup' ? '💰 儲值管理' : (view === 'screenshots' ? '💳 付款回報' : (view === 'report' ? '📊 營業報表' : '⚙️ 系統設定')));
+        if (view === 'report') {
+            if (!document.getElementById('reportSummaryDate').value) {
+                document.getElementById('reportSummaryDate').valueAsDate = new Date();
+            }
+            loadSalesSummary();
+        } else if (view === 'settings') {
+            loadFeatureToggles();
+            loadClosureSchedule();
+            loadSystemHealth();
+            loadRefundRecords();
+            if (!document.getElementById('exportFromDate').value) {
+                const today = new Date();
+                const weekAgo = new Date(today);
+                weekAgo.setDate(weekAgo.getDate() - 6);
+                document.getElementById('exportFromDate').valueAsDate = weekAgo;
+                document.getElementById('exportToDate').valueAsDate = today;
+            }
+        } else {
+            loadCurrentView();
+        }
+    }
+
+    // ★ 2026-07-22 新增：載入簡易營業報表
+    async function loadSalesSummary() {
+        const dateInput = document.getElementById('reportSummaryDate');
+        const dateStr = dateInput.value || '';
+        const loadingEl = document.getElementById('reportLoadingArea');
+        const contentEl = document.getElementById('reportSummaryContent');
+        loadingEl.style.display = 'block';
+        contentEl.innerHTML = '';
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getSalesSummary&password=${encodeURIComponent(adminPassword)}&date=${encodeURIComponent(dateStr)}`);
+            const data = await resp.json();
+            if (data.status !== 'success') {
+                contentEl.innerHTML = `<div class="empty-state">${escapeHtml(data.message)}</div>`;
+                return;
+            }
+            const rankingHtml = data.itemRanking.length === 0
+                ? `<div class="hint">這天還沒有任何品項銷售紀錄</div>`
+                : `<table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:2px solid var(--border);">
+                        <th style="text-align:left;padding:8px 6px;font-size:13px;">品項</th>
+                        <th style="text-align:right;padding:8px 6px;font-size:13px;">銷售數量</th>
+                    </tr></thead>
+                    <tbody>${data.itemRanking.map((it, idx) => `
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:8px 6px;font-size:14px;">${idx < 3 ? ['🥇','🥈','🥉'][idx] : ''} ${escapeHtml(it.name)}</td>
+                            <td style="padding:8px 6px;font-size:14px;text-align:right;font-weight:700;">${it.quantity}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>`;
+            contentEl.innerHTML = `
+                <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+                    <div style="flex:1;min-width:140px;background:#eef2ff;border-radius:12px;padding:16px;text-align:center;">
+                        <div style="font-size:12px;color:var(--gray);margin-bottom:4px;">訂單數</div>
+                        <div style="font-size:26px;font-weight:900;color:var(--primary);">${data.orderCount}</div>
+                    </div>
+                    <div style="flex:1;min-width:140px;background:#f0fdf4;border-radius:12px;padding:16px;text-align:center;">
+                        <div style="font-size:12px;color:var(--gray);margin-bottom:4px;">總營收</div>
+                        <div style="font-size:26px;font-weight:900;color:#16a34a;">$${data.totalRevenue}</div>
+                    </div>
+                </div>
+                <div class="section-label" style="margin-bottom:8px;">🏆 熱銷品項排行（前10名）</div>
+                ${rankingHtml}
+                <div class="hint" style="margin-top:14px;">💡 已取消的訂單不計入統計；統計基準是「下單時間」，不是取餐時間</div>
+            `;
+        } catch (err) {
+            contentEl.innerHTML = `<div class="empty-state">讀取失敗：${escapeHtml(err.message)}</div>`;
+        } finally {
+            loadingEl.style.display = 'none';
+        }
+    }
+
+    // ★ 2026-07-22 新增：功能開關設定
+    const FEATURE_LABELS = {
+        repeatOrder: '客人「再訂一次」按鈕',
+        lineNotifyNewOrder: 'LINE推播新訂單提醒（需要另外設定LINE Messaging API金鑰才會真的送出，沒設定金鑰開了也不會出錯，只是不會有效果）',
+        customerNote: '熟客標記/備註',
+        scheduledClosure: '排程公休（下方可以設定）',
+        autoDelistOnStockout: '進貨標記缺貨時，自動下架同名的菜單品項',
+        itemProfitMargin: '菜單編輯顯示每項毛利率',
+        supplierPriceCompare: '供應商比價（每日進貨分頁裡）',
+        refundRecord: '正式退款/補償紀錄（下方可以登記）',
+        exportOrdersCsv: '訂單匯出成CSV（下方可以匯出）',
+        systemHealthDashboard: '系統健康度儀表板（本頁最上面）',
+        customerRating: '客人評分/意見回饋（完成訂單後可以打星星評分）',
+        busyTimeNotice: '忙碌時段提示（給客人看，待處理訂單多的時候提醒）',
+        pickupNotifyCustomer: '取餐完成主動LINE通知客人（需要另外設定LINE Messaging API金鑰才會真的送出）',
+        soldOutMessage: '限量品項售完時顯示「明天再來」提示',
+        closureCountdown: '公休倒數提示（給客人看，快公休前提前通知）'
+    };
+    let currentToggles = {};
+    async function loadFeatureToggles() {
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getFeatureToggles&password=${encodeURIComponent(adminPassword)}`);
+            const data = await resp.json();
+            if (data.status === 'success') {
+                currentToggles = data.toggles || {};
+                renderFeatureToggles();
+            }
+        } catch (err) {
+            showNotice('讀取功能開關失敗：' + err.message, 'err');
+        }
+    }
+    function renderFeatureToggles() {
+        const list = document.getElementById('featureTogglesList');
+        list.innerHTML = Object.keys(FEATURE_LABELS).map(key => {
+            const isOn = currentToggles[key] !== false;
+            return `
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;padding:12px 14px;border-radius:10px;margin-bottom:8px;">
+                <span style="font-size:13px;flex:1;">${FEATURE_LABELS[key]}</span>
+                <label class="toggle-switch" style="position:relative;width:44px;height:24px;flex-shrink:0;margin-left:10px;">
+                    <input type="checkbox" ${isOn ? 'checked' : ''} onchange="toggleFeature('${key}', this.checked)" style="opacity:0;width:0;height:0;">
+                    <span style="position:absolute;inset:0;background:${isOn ? 'var(--success)' : '#cbd5e1'};border-radius:24px;transition:.2s;"></span>
+                    <span style="position:absolute;width:18px;height:18px;left:${isOn ? '23px' : '3px'};top:3px;background:#fff;border-radius:50%;transition:.2s;"></span>
+                </label>
+            </div>`;
+        }).join('');
+    }
+    async function toggleFeature(key, value) {
+        currentToggles[key] = value;
+        try {
+            const resp = await fetch(WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'setFeatureToggles', password: adminPassword, operator: INJECTED_OPERATOR, toggles: { [key]: value } })
+            });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                showNotice(value ? '✅ 已開啟' : '已關閉', 'ok');
+            } else {
+                showNotice('❌ ' + data.message, 'err');
+                renderFeatureToggles(); // 失敗要復原畫面上的開關狀態
+            }
+        } catch (err) {
+            showNotice('設定失敗：' + err.message, 'err');
+        }
+    }
+
+    // ★ 2026-07-22 新增：排程公休設定
+    const WEEKDAY_LABELS = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+    let closureWeeklyDays = [];
+    let closureRanges = [];
+    async function loadClosureSchedule() {
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getClosureSchedule&password=${encodeURIComponent(adminPassword)}`);
+            const data = await resp.json();
+            if (data.status === 'success') {
+                closureWeeklyDays = data.weeklyClosedDays || [];
+                closureRanges = data.dateRanges || [];
+                renderWeeklyClosedDays();
+                renderClosureRanges();
+            }
+        } catch (err) {
+            showNotice('讀取排程公休設定失敗：' + err.message, 'err');
+        }
+    }
+    function renderWeeklyClosedDays() {
+        const list = document.getElementById('weeklyClosedDaysList');
+        list.innerHTML = WEEKDAY_LABELS.map((label, idx) => {
+            const isOn = closureWeeklyDays.indexOf(idx) !== -1;
+            return `<button onclick="toggleWeeklyClosedDay(${idx})" style="padding:8px 14px;border-radius:20px;border:1.5px solid ${isOn ? 'var(--danger)' : 'var(--border)'};background:${isOn ? '#fee2e2' : '#fff'};color:${isOn ? 'var(--danger)' : 'var(--gray)'};font-weight:700;font-size:13px;cursor:pointer;">${label}</button>`;
+        }).join('');
+    }
+    function toggleWeeklyClosedDay(idx) {
+        const pos = closureWeeklyDays.indexOf(idx);
+        if (pos === -1) closureWeeklyDays.push(idx); else closureWeeklyDays.splice(pos, 1);
+        renderWeeklyClosedDays();
+    }
+    function renderClosureRanges() {
+        const list = document.getElementById('closureRangesList');
+        if (closureRanges.length === 0) {
+            list.innerHTML = `<div class="hint">目前沒有預先排定的公休區間</div>`;
+            return;
+        }
+        list.innerHTML = closureRanges.map((r, idx) => `
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+                <input type="date" value="${r.from || ''}" onchange="closureRanges[${idx}].from=this.value" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;">
+                <span style="color:var(--gray);">～</span>
+                <input type="date" value="${r.to || ''}" onchange="closureRanges[${idx}].to=this.value" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;">
+                <input type="text" value="${escapeHtml(r.message || '')}" placeholder="公休原因（選填）" oninput="closureRanges[${idx}].message=this.value" style="flex:1;min-width:100px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;">
+                <button onclick="removeClosureRange(${idx})" style="border:none;background:#fee2e2;color:var(--danger);width:28px;height:28px;border-radius:6px;font-weight:900;cursor:pointer;">✕</button>
+            </div>`).join('');
+    }
+    function addClosureRange() {
+        closureRanges.push({ from: '', to: '', message: '' });
+        renderClosureRanges();
+    }
+    function removeClosureRange(idx) {
+        closureRanges.splice(idx, 1);
+        renderClosureRanges();
+    }
+    async function saveClosureSchedule() {
+        try {
+            const resp = await fetch(WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'setClosureSchedule', password: adminPassword, operator: INJECTED_OPERATOR, weeklyClosedDays: closureWeeklyDays, dateRanges: closureRanges })
+            });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                showNotice('✅ 排程公休設定已儲存', 'ok');
+            } else {
+                showNotice('❌ ' + data.message, 'err');
+            }
+        } catch (err) {
+            showNotice('儲存失敗：' + err.message, 'err');
+        }
+    }
+
+    // ★ 2026-07-22 新增：系統健康度儀表板
+    async function loadSystemHealth() {
+        const el = document.getElementById('healthDashboard');
+        el.innerHTML = '<div class="loading">載入中...</div>';
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getSystemHealth&password=${encodeURIComponent(adminPassword)}`);
+            const data = await resp.json();
+            if (data.status !== 'success') { el.innerHTML = `<div class="empty-state">${escapeHtml(data.message)}</div>`; return; }
+            const h = data.health;
+            const backupOk = h.backupTriggerActive && h.lastBackupDaysAgo !== null && h.lastBackupDaysAgo <= 2;
+            const cards = [
+                { label: '每日自動備份', value: h.backupTriggerActive ? '✅ 已設定' : '❌ 未設定', color: h.backupTriggerActive ? '#16a34a' : '#dc2626' },
+                { label: '最近一次備份', value: h.lastBackupTime ? h.lastBackupTime + (h.lastBackupDaysAgo > 0 ? `（${h.lastBackupDaysAgo}天前）` : '（今天）') : '尚無備份紀錄', color: backupOk ? '#16a34a' : '#d97706' },
+                { label: '目前營業狀態', value: h.storeIsOpen ? '🟢 營業中' : '🔴 公休中', color: h.storeIsOpen ? '#16a34a' : '#dc2626' },
+                { label: '今日訂單數', value: h.todayOrderCount !== null ? h.todayOrderCount + ' 筆' : '讀取失敗', color: '#1a3a5c' },
+                { label: '超過2小時未處理的未匯款訂單', value: h.stuckUnpaidCount !== null ? h.stuckUnpaidCount + ' 筆' : '讀取失敗', color: h.stuckUnpaidCount > 0 ? '#dc2626' : '#16a34a' }
+            ];
+            el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+                ${cards.map(c => `
+                    <div style="background:#fff;border-radius:10px;padding:12px;">
+                        <div style="font-size:11px;color:var(--gray);margin-bottom:4px;">${c.label}</div>
+                        <div style="font-size:15px;font-weight:900;color:${c.color};">${c.value}</div>
+                    </div>`).join('')}
+            </div>
+            <div style="font-size:11px;color:var(--gray);margin-top:8px;">程式版本：${escapeHtml(h.scriptVersion)}｜檢查時間：${escapeHtml(h.checkedAt)}</div>`;
+        } catch (err) {
+            el.innerHTML = `<div class="empty-state">讀取失敗：${escapeHtml(err.message)}</div>`;
+        }
+    }
+
+    // ★ 2026-07-22 新增：退款/補償紀錄
+    async function loadRefundRecords() {
+        const el = document.getElementById('refundRecordsList');
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getRefundRecords&password=${encodeURIComponent(adminPassword)}`);
+            const data = await resp.json();
+            if (data.status !== 'success') return;
+            const records = (data.records || []).slice(0, 20); // 只顯示最近20筆，太多會很長
+            if (records.length === 0) { el.innerHTML = '<div class="hint">目前沒有退款紀錄</div>'; return; }
+            el.innerHTML = `<div style="font-weight:700;font-size:12px;color:var(--gray);margin-bottom:6px;">最近的退款紀錄</div>` +
+                records.map(r => `
+                    <div style="padding:8px 0;border-top:1px solid var(--border);font-size:12px;">
+                        <b>${escapeHtml(r.orderNumber)}</b>　-$${r.amount}　<span style="color:var(--gray);">${escapeHtml(r.time)}</span><br>
+                        <span style="color:#475569;">${escapeHtml(r.reason)}</span>
+                    </div>`).join('');
+        } catch (err) {
+            console.warn('讀取退款紀錄失敗：', err.message);
+        }
+    }
+    async function addRefundRecord() {
+        const orderNumber = document.getElementById('refundOrderNumber').value.trim();
+        const amount = Number(document.getElementById('refundAmount').value) || 0;
+        const reason = document.getElementById('refundReason').value.trim();
+        if (!orderNumber || amount <= 0 || !reason) {
+            showNotice('請填寫訂單編號、金額（大於0）、原因', 'err');
+            return;
+        }
+        try {
+            const resp = await fetch(WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'addRefundRecord', password: adminPassword, operator: INJECTED_OPERATOR, orderNumber, amount, reason })
+            });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                showNotice('✅ 已登記退款', 'ok');
+                document.getElementById('refundOrderNumber').value = '';
+                document.getElementById('refundAmount').value = '';
+                document.getElementById('refundReason').value = '';
+                loadRefundRecords();
+            } else {
+                showNotice('❌ ' + data.message, 'err');
+            }
+        } catch (err) {
+            showNotice('登記失敗：' + err.message, 'err');
+        }
+    }
+
+    // ★ 2026-07-22 新增：訂單匯出成CSV
+    async function exportOrdersCsv() {
+        const from = document.getElementById('exportFromDate').value;
+        const to = document.getElementById('exportToDate').value;
+        if (!from || !to) { showNotice('請選擇匯出區間', 'err'); return; }
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=exportOrdersCsv&password=${encodeURIComponent(adminPassword)}&from=${from}&to=${to}`);
+            const data = await resp.json();
+            if (data.status !== 'success') { showNotice('❌ ' + data.message, 'err'); return; }
+            if (!data.csv || data.rowCount === 0) { showNotice('這段期間沒有訂單資料', 'err'); return; }
+            // ★ 加上UTF-8 BOM，避免Excel打開中文變亂碼
+            const blob = new Blob(['\ufeff' + data.csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `訂單匯出_${from}_${to}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showNotice(`✅ 已匯出 ${data.rowCount} 筆訂單`, 'ok');
+        } catch (err) {
+            showNotice('匯出失敗：' + err.message, 'err');
+        }
+    }
+
+    function loadCurrentView(silent) {
+        if (currentView === 'orders') loadOrders(silent);
+        else if (currentView === 'topup') loadTopupRequests(silent);
+        else loadScreenshotsOverview(silent);
+    }
+
+    function startAutoRefresh() {
+        if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+        autoRefreshTimer = setInterval(() => {
+            // ★ 2026-07-20 修正：密碼已經被判定錯誤時，直接跳過這次自動更新，
+            // 不要繼續拿錯的密碼打API，避免在使用者沒注意到的情況下持續消耗
+            // Code.gs那邊的密碼錯誤額度（全部管理頁面共用同一桶，很快就會鎖住）
+            if (passwordInvalid) return;
+            if (document.getElementById('autoRefreshToggle').checked) loadCurrentView(true);
+        }, 30000);
+    }
+
+    async function loadOrders(silent) {
+        if (!silent) document.getElementById('loadingArea').style.display = 'block';
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getOrders&password=${encodeURIComponent(adminPassword)}`);
+            const data = await resp.json();
+            if (data.status !== 'success') {
+                if (data.message && data.message.includes('密碼')) {
+                    // ★ 2026-07-20 修正：原本不管是不是「靜默的自動更新」都會跳出
+                    // prompt()要求重新輸入密碼，代表背景每30秒就可能彈一次擾人的
+                    // 對話框，而且使用者沒空理它的話，下一輪30秒又會再打一次錯密碼
+                    // 的API、又跳一次prompt，密碼錯誤額度用得更快。改成：先設定
+                    // passwordInvalid旗標讓自動更新整個暫停，靜默模式下只顯示一個
+                    // 不擾人的提示訊息，不強迫跳出對話框；只有使用者「手動」按重新
+                    // 整理（非silent）的時候，才用prompt()請他立刻重新輸入密碼。
+                    passwordInvalid = true;
+                    if (silent) {
+                        showNotice('⚠️ 密碼已失效，請按「重新整理」手動登入', 'err');
+                        return;
+                    }
+                    const retry = prompt(`${data.message}\n請重新輸入密碼：`);
+                    if (retry !== null) {
+                        adminPassword = retry.trim();
+                        passwordInvalid = false;
+                        loadOrders();
+                    }
+                    return;
+                }
+                throw new Error(data.message || '讀取失敗');
+            }
+            passwordInvalid = false;
+            allOrders = data.orders || [];
+
+            // 偵測新訂單：拿目前訂單編號跟上次記住的比對，多出來的就是新進來的訂單
+            const currentOrderNumbers = new Set(allOrders.map(o => o.orderNumber));
+            if (knownOrderNumbers === null) {
+                // 第一次登入載入，只記錄不響鈴，避免一開畫面舊訂單全部被當成「新訂單」響一輪
+                knownOrderNumbers = currentOrderNumbers;
+            } else {
+                const newOnes = [...currentOrderNumbers].filter(n => !knownOrderNumbers.has(n));
+                if (newOnes.length > 0) {
+                    playNewOrderSound();
+                    showNotice(`🔔 有 ${newOnes.length} 筆新訂單進來了！`, 'ok');
+                }
+                knownOrderNumbers = currentOrderNumbers;
+            }
+
+            renderOrders();
+        } catch (err) {
+            if (!silent) showNotice('讀取訂單失敗：' + err.message, 'err');
+        } finally {
+            document.getElementById('loadingArea').style.display = 'none';
+        }
+    }
+
+    // ────────────────────────────────────────────
+    // ★ 付款回報：客人自己填「取餐號＋電話後三碼＋金額」申報付款，
+    // 這裡讀取後端已經自動比對好的結果，按回報時間排序，用表格呈現，
+    // 方便跟手機銀行App的轉帳明細（同樣是時間排序）由上往下對照。
+    // ────────────────────────────────────────────
+    // ★ 一鍵確認收款：店家自己去銀行帳戶核對過（拿銀行末三碼比對），
+    // 確認沒問題才按這個。這步刻意不自動化，是防止有人不用真的付款、
+    // 單靠畫面上看得到的取餐號/電話/金額就讓系統自動出餐的最後把關。
+    async function confirmPaymentReport(rowNumber) {
+        if (!(await customConfirm('確定已經去銀行核對過、錢真的到帳了嗎？\n這個動作會把對應訂單標記為「已匯款」。'))) return;
+        try {
+            const url = `${WEB_APP_URL}?action=confirmPaymentReport&password=${encodeURIComponent(adminPassword)}&rowNumber=${rowNumber}&operator=${encodeURIComponent(INJECTED_OPERATOR)}`;
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (data.status === 'success') {
+                showNotice('✅ ' + data.message, 'ok');
+                loadScreenshotsOverview(true);
+            } else {
+                showNotice('❌ ' + data.message, 'err');
+            }
+        } catch (err) {
+            showNotice('❌ 確認失敗：' + err.message, 'err');
+        }
+    }
+
+    // ★ 付款回報表格：多欄位組合排序。paymentReportSortKeys是一個陣列，
+    // 依「使用者點擊的先後順序」記錄排序優先權，例如先點「電話後3碼」
+    // 再點「回報時間」，陣列會是[{key:'phoneLast3',dir:'asc'},{key:'reportedAt',dir:'desc'}]，
+    // 代表先依電話分組，組內再依時間排序。點同一欄位第二次會切換方向，
+    // 「清除排序」把這個陣列清空，回到預設（新到舊）。
+    let paymentReportSortKeys = [];
+
+    function toggleReportSort(key) {
+        const existing = paymentReportSortKeys.find(s => s.key === key);
+        if (existing) {
+            existing.dir = existing.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            paymentReportSortKeys.push({ key: key, dir: 'asc' });
+        }
+        loadScreenshotsOverview(false);
+    }
+
+    function applyReportSort(reports) {
+        if (paymentReportSortKeys.length === 0) {
+            // 預設：新到舊
+            return reports.slice().sort((a, b) => String(b.reportedAt).localeCompare(String(a.reportedAt)));
+        }
+        return reports.slice().sort((a, b) => {
+            for (const s of paymentReportSortKeys) {
+                let av = a[s.key], bv = b[s.key];
+                // 取餐號、電話後三碼是數字/數字字串，用數字比較；回報時間用字串比較即可
+                if (s.key === 'takeNumber' || s.key === 'phoneLast3') {
+                    av = Number(av) || 0;
+                    bv = Number(bv) || 0;
+                    if (av !== bv) return s.dir === 'asc' ? av - bv : bv - av;
+                } else {
+                    const cmp = String(av).localeCompare(String(bv));
+                    if (cmp !== 0) return s.dir === 'asc' ? cmp : -cmp;
+                }
+            }
+            return 0;
+        });
+    }
+
+    function renderSortIndicators() {
+        ['reportedAt', 'takeNumber', 'phoneLast3'].forEach(key => {
+            const el = document.getElementById('sortIndicator_' + key);
+            if (!el) return;
+            const idx = paymentReportSortKeys.findIndex(s => s.key === key);
+            if (idx === -1) { el.textContent = ''; return; }
+            const s = paymentReportSortKeys[idx];
+            el.textContent = `${s.dir === 'asc' ? '▲' : '▼'}${paymentReportSortKeys.length > 1 ? (idx + 1) : ''}`;
+        });
+    }
+
+    async function loadScreenshotsOverview(silent) {
+        if (!silent) document.getElementById('screenshotsLoadingArea').style.display = 'block';
+        try {
+            const dataResp = await fetch(`${WEB_APP_URL}?action=getPaymentReports&password=${encodeURIComponent(adminPassword)}`);
+            const data = await dataResp.json();
+            if (data.status !== 'success') throw new Error(data.message || '讀取失敗');
+
+            let reports = data.reports || [];
+
+            // ★ 日期區間篩選：拿reportedAt（格式yyyy-MM-dd HH:mm:ss）的日期部分比對，
+            // 空白代表不篩選那一邊
+            const dateFrom = document.getElementById('reportDateFrom').value;
+            const dateTo = document.getElementById('reportDateTo').value;
+            if (dateFrom || dateTo) {
+                reports = reports.filter(r => {
+                    const datePart = String(r.reportedAt || '').slice(0, 10);
+                    if (dateFrom && datePart < dateFrom) return false;
+                    if (dateTo && datePart > dateTo) return false;
+                    return true;
+                });
+            }
+
+            // ★ 排序：改用多欄位組合排序（applyReportSort），沒有點過任何欄位時
+            // 預設新到舊，符合「最新單排最上」的需求
+            reports = applyReportSort(reports);
+
+            const grid = document.getElementById('screenshotsGrid');
+            const emptyState = document.getElementById('screenshotsEmptyState');
+
+            if (reports.length === 0) {
+                grid.innerHTML = '';
+                emptyState.style.display = 'block';
+            } else {
+                emptyState.style.display = 'none';
+                grid.innerHTML = `
+                <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;font-size:13px;">
+                    <thead>
+                        <tr style="background:var(--light);text-align:left;">
+                            <th style="padding:10px;cursor:pointer;user-select:none;" onclick="toggleReportSort('reportedAt')">回報時間 <span id="sortIndicator_reportedAt"></span></th>
+                            <th style="padding:10px;cursor:pointer;user-select:none;" onclick="toggleReportSort('takeNumber')">取餐號 <span id="sortIndicator_takeNumber"></span></th>
+                            <th style="padding:10px;cursor:pointer;user-select:none;" onclick="toggleReportSort('phoneLast3')">電話後3碼 <span id="sortIndicator_phoneLast3"></span></th>
+                            <th style="padding:10px;">回報金額</th>
+                            <th style="padding:10px;">銀行末3碼</th>
+                            <th style="padding:10px;">對應客人</th>
+                            <th style="padding:10px;">對應訂單</th>
+                            <th style="padding:10px;">收款確認</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${reports.map(r => `
+                            <tr style="border-top:1px solid var(--border);">
+                                <td style="padding:10px;">${escapeHtml(r.reportedAt)}</td>
+                                <td style="padding:10px;font-weight:900;">${escapeHtml(String(r.takeNumber))}</td>
+                                <td style="padding:10px;">${escapeHtml(String(r.phoneLast3))}</td>
+                                <td style="padding:10px;font-weight:700;color:var(--primary);">$${r.reportedAmount}</td>
+                                <td style="padding:10px;color:var(--gray);font-weight:900;">${escapeHtml(String(r.bankLast3 || '-'))}</td>
+                                <td style="padding:10px;">${escapeHtml(r.matchedCustomerName || '-')}</td>
+                                <td style="padding:10px;font-size:11px;color:var(--gray);">${escapeHtml(r.matchedOrderNumber || '-')}</td>
+                                <td style="padding:10px;">
+                                    ${r.confirmed
+                                        ? `<span style="color:#166534;font-weight:700;font-size:12px;">✅ ${escapeHtml(r.confirmed)}</span>`
+                                        : `<button onclick="confirmPaymentReport(${r.rowNumber})" style="padding:6px 14px;border:none;border-radius:8px;background:var(--success);color:#fff;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;">✅ 確認收款</button>`}
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>
+                </div>`;
+                renderSortIndicators();
+            }
+        } catch (err) {
+            showNotice('❌ 載入付款回報失敗：' + err.message, 'err');
+        } finally {
+            document.getElementById('screenshotsLoadingArea').style.display = 'none';
+        }
+    }
+
+    // ────────────────────────────────────────────
+    // ★ 儲值管理：讀取儲值記錄、依狀態篩選、確認/駁回儲值申請
+    // ────────────────────────────────────────────
+    function setTopupFilter(filter) {
+        currentTopupFilter = filter;
+        document.querySelectorAll('#topupFilterTabs .filter-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.topupFilter === filter);
+        });
+        renderTopupRecords();
+    }
+
+    async function loadTopupRequests(silent) {
+        if (!silent) document.getElementById('topupLoadingArea').style.display = 'block';
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getTopupRequests&password=${encodeURIComponent(adminPassword)}`);
+            const data = await resp.json();
+            if (data.status !== 'success') {
+                if (data.message && data.message.includes('密碼')) {
+                    // ★ 2026-07-20 修正：跟loadOrders()同一個原則，靜默自動更新時不跳
+                    // prompt()、改暫停自動更新，避免密碼錯誤額度被背景悄悄用光
+                    passwordInvalid = true;
+                    if (silent) {
+                        showNotice('⚠️ 密碼已失效，請按「重新整理」手動登入', 'err');
+                        return;
+                    }
+                    const retry = prompt(`${data.message}\n請重新輸入密碼：`);
+                    if (retry !== null) {
+                        adminPassword = retry.trim();
+                        passwordInvalid = false;
+                        loadTopupRequests();
+                    }
+                    return;
+                }
+                throw new Error(data.message || '讀取失敗');
+            }
+            passwordInvalid = false;
+            allTopupRecords = data.records || [];
+            renderTopupRecords();
+        } catch (err) {
+            if (!silent) showNotice('讀取儲值記錄失敗：' + err.message, 'err');
+        } finally {
+            document.getElementById('topupLoadingArea').style.display = 'none';
+        }
+    }
+
+    function renderTopupRecords() {
+        const grid = document.getElementById('topupGrid');
+        const emptyState = document.getElementById('topupEmptyState');
+
+        // 儲值記錄裡也包含「訂單扣款」這種系統自動產生的負數紀錄，這裡只給店員看跟他們要核對的「儲值申請」
+        let filtered = allTopupRecords.filter(r => r.type === '儲值申請');
+        if (currentTopupFilter !== '全部') {
+            filtered = filtered.filter(r => r.status === currentTopupFilter);
+        }
+
+        if (filtered.length === 0) {
+            grid.innerHTML = '';
+            emptyState.style.display = 'block';
+            return;
+        }
+        emptyState.style.display = 'none';
+
+        const statusMeta = {
+            '待確認': { cls: 'confirmed', label: '🟡 待確認' },
+            '已確認': { cls: 'done', label: '🟢 已確認' },
+            '已取消': { cls: 'cancelled', label: '⚪ 已駁回' }
+        };
+
+        grid.innerHTML = filtered.map(r => {
+            const meta = statusMeta[r.status] || { cls: 'pending', label: r.status };
+            return `
+            <div class="order-card status-${meta.cls}">
+                <div class="order-head">
+                    <div class="order-head-main">
+                        <div class="order-number">${escapeHtml(r.customerName)}</div>
+                        <div class="order-time">${escapeHtml(r.createdAt)}</div>
+                    </div>
+                    <span class="status-badge ${meta.cls}">${meta.label}</span>
+                </div>
+                <div class="order-info">
+                    📞 ${escapeHtml(r.customerPhone)}<br>
+                    💬 LINE：${escapeHtml(r.lineDisplayName || '未知')}
+                </div>
+                <div class="order-total">到帳 $${r.amount}</div>
+                ${r.adminNote ? `<div class="admin-note" style="color:#475569;background:#f1f5f9;">📝 ${escapeHtml(r.adminNote)}</div>` : ''}
+                ${r.status === '待確認' ? `
+                <div class="order-actions" style="grid-template-columns:1fr 1fr;">
+                    <button class="action-btn btn-cancel" onclick="rejectTopup(${r.rowNumber})">✕ 駁回</button>
+                    <button class="action-btn btn-done" onclick="confirmTopup(${r.rowNumber})">✅ 確認入帳</button>
+                </div>` : ''}
+            </div>`;
+        }).join('');
+    }
+
+    async function confirmTopup(rowNumber) {
+        if (!(await customConfirm('確認已經核對過匯款截圖，要讓這筆儲值入帳嗎？'))) return;
+        try {
+            const url = `${WEB_APP_URL}?action=confirmTopupRequest&password=${encodeURIComponent(adminPassword)}&rowNumber=${rowNumber}&approve=true&operator=${encodeURIComponent(INJECTED_OPERATOR)}`;
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (data.status === 'success') {
+                showNotice('✅ 已確認入帳', 'ok');
+                loadTopupRequests(true);
+            } else {
+                showNotice('❌ ' + data.message, 'err');
+            }
+        } catch (err) {
+            showNotice('確認失敗：' + err.message, 'err');
+        }
+    }
+
+    async function rejectTopup(rowNumber) {
+        if (!(await customConfirm('確定要駁回這筆儲值申請嗎？（例如客人根本沒匯款、或截圖對不上）'))) return;
+        try {
+            const url = `${WEB_APP_URL}?action=confirmTopupRequest&password=${encodeURIComponent(adminPassword)}&rowNumber=${rowNumber}&approve=false&operator=${encodeURIComponent(INJECTED_OPERATOR)}`;
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (data.status === 'success') {
+                showNotice('已駁回這筆儲值申請', 'ok');
+                loadTopupRequests(true);
+            } else {
+                showNotice('❌ ' + data.message, 'err');
+            }
+        } catch (err) {
+            showNotice('駁回失敗：' + err.message, 'err');
+        }
+    }
+
+    // ────────────────────────────────────────────
+    // ────────────────────────────────────────────
+    // ★ 品項彙總：把每筆訂單的餐點文字拆開，同款同規格的自動加總。
+    // 訂單裡的items欄位格式固定是「品項名稱 x數量 (客製化選項) +加購:xxx」，
+    // 多個品項用「； 」串起來（這是前端buildOrderItemsText()產生的固定格式）。
+    // 拆解邏輯：抓「名稱」+「x數量」+「後面剩下的客製化/加購文字」，
+    // 名稱+客製化+加購完全相同的才算同一款，數量加總；只要客製化不同
+    // （例如一份三分熟、一份五分熟）就分開算，不會誤合併。
+    // ────────────────────────────────────────────
+    function parseItemsForAggregation(itemsText) {
+        if (!itemsText) return [];
+        return String(itemsText).split('；').map(s => s.trim()).filter(Boolean).map(entry => {
+            const m = entry.match(/^(.+?)\s+x(\d+)(.*)$/);
+            if (!m) return { key: entry, qty: 1 }; // 格式對不上的舊資料，當成1份、原文當key
+            const name = m[1].trim();
+            const qty = parseInt(m[2], 10) || 1;
+            const suffix = m[3].trim(); // 客製化選項／加購那段
+            const key = suffix ? `${name}　${suffix}` : name;
+            return { key, qty };
+        });
+    }
+
+    function aggregateItemsAcrossOrders(orders) {
+        const totals = {};
+        orders.forEach(o => {
+            parseItemsForAggregation(o.items).forEach(({ key, qty }) => {
+                totals[key] = (totals[key] || 0) + qty;
+            });
+        });
+        // 數量多的排前面，廚房一眼看到要準備最多的是什麼
+        return Object.entries(totals)
+            .map(([key, qty]) => ({ key, qty }))
+            .sort((a, b) => b.qty - a.qty);
+    }
+
+    // ★ 桌號搜尋：比對每筆訂單的「訂單備註」欄位裡有沒有出現輸入的桌號文字，
+    // 找出來的訂單列印成一張出餐單。純文字比對（includes），不要求格式完全一致，
+    // 客人備註打「5號桌」「桌號5」「5」都比對得到，只要含有輸入的那串文字就算。
+    //
+    // ★ 範圍限制：只抓「還沒完成、還沒取消」的訂單，避免查到舊的、已經出過餐的
+    // 紀錄混在一起列印，造成廚房重複出餐或印到不相關的舊單。
+    // ────────────────────────────────────────────
+    function searchByTable() {
+        const input = document.getElementById('tableSearchInput');
+        const keyword = (input.value || '').trim();
+        if (!keyword) {
+            showNotice('請先輸入桌號', 'err');
+            return;
+        }
+
+        const matched = allOrders.filter(o => {
+            if (o.status === '已完成' || o.status === '已取消') return false;
+            const note = String(o.orderNotes || '');
+            return note.includes(keyword);
+        });
+
+        renderTableModal(keyword, matched);
+    }
+
+    function renderTableModal(keyword, orders) {
+        const title = document.getElementById('tableModalTitle');
+        const body = document.getElementById('tableModalBody');
+        title.textContent = `🍽️ 桌號「${keyword}」查詢結果（共${orders.length}筆訂單）`;
+
+        if (orders.length === 0) {
+            body.innerHTML = `<p style="text-align:center;color:var(--gray);padding:30px 10px;">
+                目前查不到備註欄含有「${escapeHtml(keyword)}」的進行中訂單<br>
+                <span style="font-size:12px;">（已完成/已取消的訂單不會出現在這裡）</span>
+            </p>`;
+        } else {
+            const totalAmount = orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+            const aggregated = aggregateItemsAcrossOrders(orders);
+
+            const summaryHtml = `
+                <div class="table-order-block" style="background:#f0fdf4;border-color:#86efac;">
+                    <div class="to-head"><span>📊 彙總清單（${orders.length}筆訂單合計）</span><span></span></div>
+                    <div class="to-items">
+                        ${aggregated.map(a => `${escapeHtml(a.key)} <b>x${a.qty}</b>`).join('<br>')}
+                    </div>
+                    <div class="to-total">合計 $${totalAmount}</div>
+                </div>
+            `;
+
+            const detailHtml = orders.map(o => `
+                <div class="table-order-block">
+                    <div class="to-head">
+                        <span>👤 ${escapeHtml(o.customerName)}　📞 ${escapeHtml(o.customerPhone)}</span>
+                        <span>${escapeHtml(o.orderNumber)}</span>
+                    </div>
+                    <div class="to-items">${escapeHtml(o.items)}</div>
+                    <div class="to-total">$${o.total}</div>
+                    ${o.orderNotes ? `<div class="to-note">📝 ${escapeHtml(o.orderNotes)}</div>` : ''}
+                </div>
+            `).join('');
+
+            body.innerHTML = summaryHtml
+                + '<div style="font-size:12px;color:var(--gray);font-weight:700;margin:14px 0 8px;">↓ 各筆訂單明細（方便對照是誰點的）</div>'
+                + detailHtml;
+        }
+
+        document.getElementById('tableModalOverlay').classList.add('show');
+    }
+
+    function closeTableModal() {
+        document.getElementById('tableModalOverlay').classList.remove('show');
+    }
+
+    function setFilter(filter) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.filter === filter);
+        });
+        renderOrders();
+    }
+
+    // ★ 叫號：依「取餐日期」各自從1號重新開始，同一取餐日內依訂單建立時間排序。
+    // 已取消的訂單不佔號碼。永遠用 allOrders（不受篩選影響）去算，
+    // 這樣不管店員切到哪個篩選頁籤，同一張訂單的號碼都是固定的，不會跳來跳去。
+    function computeQueueNumbers(orders) {
+        const byDate = {};
+        orders.forEach(o => {
+            if (o.status === '已取消') return;
+            const key = o.pickupDate || '';
+            if (!byDate[key]) byDate[key] = [];
+            byDate[key].push(o);
+        });
+        const numberMap = {};
+        Object.values(byDate).forEach(list => {
+            list.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+            list.forEach((o, i) => { numberMap[o.orderNumber] = i + 1; });
+        });
+        return numberMap;
+    }
+
+    function statusToClass(status) {
+        if (status === '未匯款') return 'pending';
+        if (status === '已匯款') return 'confirmed';
+        if (status === '準備中') return 'making';
+        if (status === '已完成') return 'done';
+        if (status === '已逾期') return 'expired';
+        if (status === '已取消') return 'cancelled';
+        return 'pending';
+    }
+
+    function renderOrders() {
+        const grid = document.getElementById('orderGrid');
+        const emptyState = document.getElementById('emptyState');
+
+        let filtered = allOrders;
+        if (currentFilter === '全部') {
+            filtered = allOrders;
+        } else if (currentFilter === '進行中') {
+            // ★「進行中」：顯示所有還沒完成、也還沒被取消的訂單，一按「已完成」這張訂單就會從這個標籤消失。
+            // 已取消的訂單也一併排除（簡化卡片沒有取消按鈕，留著已取消的單容易被誤點狀態按鈕）
+            filtered = allOrders.filter(o => o.status !== '已完成' && o.status !== '已取消');
+        } else {
+            filtered = allOrders.filter(o => o.status === currentFilter);
+        }
+
+        if (filtered.length === 0) {
+            grid.innerHTML = '';
+            emptyState.style.display = 'block';
+            return;
+        }
+        emptyState.style.display = 'none';
+
+        const queueNumbers = computeQueueNumbers(allOrders);
+        const isSimpleView = currentFilter === '進行中';
+
+        grid.innerHTML = filtered.map(o => {
+            const cls = statusToClass(o.status);
+
+            // ★「進行中」標籤用簡化版卡片：只顯示取餐號、取餐時間、餐點內容、價錢、四個狀態按鈕，
+            // 不顯示訂單編號/客人姓名/電話/備註，方便廚房快速掃過去看還有哪些單要做
+            if (isSimpleView) {
+                const queueNum = queueNumbers[o.orderNumber];
+                return `
+                <div class="order-card status-${cls}">
+                    <div class="order-head">
+                        <div class="queue-badge"><span class="queue-label">取餐號</span><span class="queue-num">${queueNum || '-'}</span></div>
+                        <div class="order-head-main"></div>
+                        <span class="status-badge ${cls}">${escapeHtml(o.status)}</span>
+                    </div>
+                    <div class="order-info">
+                        🕐 取餐：${escapeHtml(o.pickupDate)} ${escapeHtml(o.pickupTime)}
+                    </div>
+                    <div class="order-items">${escapeHtml(o.items)}</div>
+                    <div class="order-total">$${o.total}</div>
+                    <div class="order-actions">
+                        <button class="action-btn btn-unpaid ${o.status==='未匯款'?'active':''}" onclick="updateStatus(${o.rowNumber},'未匯款')">未匯款</button>
+                        <button class="action-btn btn-paid ${o.status==='已匯款'?'active':''}" onclick="updateStatus(${o.rowNumber},'已匯款')">已匯款</button>
+                        <button class="action-btn btn-preparing ${o.status==='準備中'?'active':''}" onclick="updateStatus(${o.rowNumber},'準備中')">準備中</button>
+                        <button class="action-btn btn-done" onclick="updateStatus(${o.rowNumber},'已完成')">已完成</button>
+                    </div>
+                </div>`;
+            }
+
+            const queueNum = queueNumbers[o.orderNumber];
+            const queueBadge = o.status === '已取消'
+                ? `<div class="queue-badge cancelled"><span class="queue-label">取餐號</span><span class="queue-num">✕</span></div>`
+                : `<div class="queue-badge"><span class="queue-label">取餐號</span><span class="queue-num">${queueNum || '-'}</span></div>`;
+            return `
+            <div class="order-card status-${cls}">
+                <div class="order-head">
+                    ${queueBadge}
+                    <div class="order-head-main">
+                        <div class="order-number">${escapeHtml(o.orderNumber)}</div>
+                        <div class="order-time">${escapeHtml(o.createdAt)}</div>
+                    </div>
+                    <span class="status-badge ${cls}">${escapeHtml(o.status)}</span>
+                </div>
+                <div class="order-info">
+                    👤 <b>${escapeHtml(o.customerName)}</b>　📞 <a href="tel:${escapeHtml(o.customerPhone)}" style="color:inherit;text-decoration:underline;">${escapeHtml(o.customerPhone)}</a><br>
+                    🕐 取餐：${escapeHtml(o.pickupDate)} ${escapeHtml(o.pickupTime)}
+                </div>
+                <div class="order-items">${escapeHtml(o.items)}</div>
+                <div class="order-total">$${o.total}</div>
+                ${o.adminNote ? `<div class="admin-note">⚠️ ${escapeHtml(o.adminNote)}</div>` : ''}
+                ${o.orderNotes ? `<div class="admin-note" style="color:#475569;background:#f1f5f9;">📝 ${escapeHtml(o.orderNotes)}</div>` : ''}
+                <!-- ★ 2026-07-22 新增：熟客備註，用電話號碼查對照表，不用另外呼叫API -->
+                <div style="margin:8px 0;padding:8px 10px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;">
+                    <div style="font-size:11px;color:#92400e;font-weight:700;margin-bottom:4px;">📌 顧客備註</div>
+                    <div style="display:flex;gap:6px;">
+                        <input type="text" id="custNote_${o.rowNumber}" value="${escapeHtml((window.customerNotes || {})[o.customerPhone] || '')}" placeholder="例如：不吃香菜、常點雞排" style="flex:1;padding:6px 8px;font-size:12px;border:1px solid #fde68a;border-radius:6px;">
+                        <button onclick="saveCustomerNote('${escapeHtml(o.customerPhone)}', ${o.rowNumber})" style="padding:6px 12px;font-size:12px;border:none;border-radius:6px;background:#92400e;color:#fff;font-weight:700;cursor:pointer;">存</button>
+                    </div>
+                </div>
+                <div class="order-actions">
+                    <button class="action-btn btn-unpaid ${o.status==='未匯款'?'active':''} ${o.status==='已完成'||o.status==='已取消'?'disabled':''}" onclick="updateStatus(${o.rowNumber},'未匯款')">未匯款</button>
+                    <button class="action-btn btn-paid ${o.status==='已匯款'?'active':''} ${o.status==='已完成'||o.status==='已取消'?'disabled':''}" onclick="updateStatus(${o.rowNumber},'已匯款')">已匯款</button>
+                    <button class="action-btn btn-preparing ${o.status==='準備中'?'active':''} ${o.status==='已完成'||o.status==='已取消'?'disabled':''}" onclick="updateStatus(${o.rowNumber},'準備中')">準備中</button>
+                    <button class="action-btn btn-done ${o.status==='已完成'?'active':''}" onclick="updateStatus(${o.rowNumber},'已完成')">已完成</button>
+                    ${o.status !== '已完成' && o.status !== '已取消' ? `<button class="action-btn btn-cancel" onclick="cancelOrder(${o.rowNumber})">✕ 取消</button>` : ''}
+                    <button class="action-btn" style="background:#fef3c7;color:#92400e;" onclick="jumpToRefundForm('${escapeHtml(o.orderNumber)}')">💸 退款</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ★ 2026-07-22 新增：從訂單卡片快速跳到「系統設定」分頁的退款登記表單，
+    // 順便把訂單編號帶進去，不用自己再輸入一次
+    function jumpToRefundForm(orderNumber) {
+        setView('settings');
+        setTimeout(() => {
+            const input = document.getElementById('refundOrderNumber');
+            if (input) { input.value = orderNumber; input.focus(); }
+        }, 100);
+    }
+
+    // ★ 截圖放大檢視：點縮圖打開，點畫面任何地方關閉
+    function openScreenshotLightbox(url) {
+        document.getElementById('screenshotLightboxImg').src = url;
+        document.getElementById('screenshotLightbox').classList.add('show');
+    }
+    function closeScreenshotLightbox() {
+        document.getElementById('screenshotLightbox').classList.remove('show');
+    }
+
+    async function updateStatus(rowNumber, status) {
+        try {
+            let url = `${WEB_APP_URL}?action=updateOrderStatus&password=${encodeURIComponent(adminPassword)}&rowNumber=${rowNumber}&status=${encodeURIComponent(status)}&operator=${encodeURIComponent(INJECTED_OPERATOR)}`;
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (data.status === 'success') {
+                showNotice('✅ 已更新訂單狀態', 'ok');
+                loadOrders(true);
+            } else {
+                showNotice('❌ ' + data.message, 'err');
+            }
+        } catch (err) {
+            showNotice('更新失敗：' + err.message, 'err');
+        }
+    }
+
+    async function cancelOrder(rowNumber) {
+        if (!(await customConfirm('確定要取消這筆訂單嗎？'))) return;
+        updateStatus(rowNumber, '已取消');
+    }
+
+    function escapeHtml(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showNotice(msg, type) {
+        const el = document.getElementById('notice');
+        el.textContent = msg;
+        el.className = `notice show ${type}`;
+        setTimeout(() => el.classList.remove('show'), 4000);
+    }
+
+    // ★ 2026-07-22 新增：自訂的確認視窗，取代瀏覽器原生的 confirm()。
+    // 原因：原生 confirm() 這種瀏覽器彈窗，在某些情況下會讓畫面暫時脫離
+    // 全螢幕狀態，被我們自己做的「退出全螢幕就強制登出」機制誤判成
+    // 「使用者離開了」，導致操作到一半突然被踢回登入畫面、動作沒有真的
+    // 送出去。改用這種畫在網頁裡面的假視窗，不會有這個副作用。
+    // 用法：await customConfirm('訊息') 取代 confirm('訊息')，回傳true/false。
+    function customConfirm(message) {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px;';
+            overlay.innerHTML = `
+                <div style="background:#fff;border-radius:14px;padding:24px;max-width:340px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3);">
+                    <div style="font-size:15px;line-height:1.6;margin-bottom:20px;white-space:pre-wrap;">${escapeHtml(message)}</div>
+                    <div style="display:flex;gap:10px;justify-content:flex-end;">
+                        <button id="customConfirmCancel" style="padding:10px 18px;border:1px solid #ccc;background:#fff;border-radius:8px;cursor:pointer;font-weight:700;">取消</button>
+                        <button id="customConfirmOk" style="padding:10px 18px;border:none;background:#2c3e8c;color:#fff;border-radius:8px;cursor:pointer;font-weight:700;">確定</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+            const cleanup = (result) => { overlay.remove(); resolve(result); };
+            overlay.querySelector('#customConfirmOk').onclick = () => cleanup(true);
+            overlay.querySelector('#customConfirmCancel').onclick = () => cleanup(false);
+        });
+    }
+</script>
+</body>
+</html>
