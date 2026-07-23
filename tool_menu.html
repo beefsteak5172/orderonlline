@@ -131,7 +131,6 @@
             <button class="active" data-pane="pane-items" onclick="switchPane('pane-items')">🍗 菜單品項</button>
             <button data-pane="pane-addons" onclick="switchPane('pane-addons')">➕ 加購項目</button>
             <button data-pane="pane-groups" onclick="switchPane('pane-groups')">🎛️ 客製選項</button>
-            <button data-pane="pane-presets" onclick="switchPane('pane-presets')">🗂️ 菜單預設集</button>
         </div>
 
         <div style="display:flex; gap:8px; padding:10px 12px 0;">
@@ -158,18 +157,6 @@
                 <p class="section-hint">這裡設定「一組一組」的選擇（例如「冰塊」這組有正常冰/少冰/去冰可選，「辣度」這組有不辣/小辣/大辣可選）。設定好之後，回到「菜單品項」分頁，替每個品項勾選要套用哪幾組。<br><b>⚠️ 這裡的選項目前無法個別加價</b>，客人選了都是原價。如果是「加購奶茶要多收 15 元」這種需要加價的，請改用「加購項目」分頁設定。</p>
                 <div id="groupsList"></div>
                 <button class="add-row-btn" onclick="addGroupRow()">＋ 新增一組客製選項</button>
-            </div>
-
-            <!-- ★ 2026-07-22 新增：菜單預設集，涵蓋「複製昨天菜單」跟「季節性菜單快速切換」
-                 兩種用途——存成一個有名字的預設集，之後一鍵套用回來 -->
-            <div class="pane" id="pane-presets">
-                <p class="section-hint">把「現在的整份菜單」存成一個有名字的預設集，之後可以一鍵套用回來。用途例如：想備份「昨天的菜單」以防今天改壞了可以復原；或是先存好「冬季菜單」「夏季菜單」，換季直接套用整組。<br><b>⚠️ 套用預設集會直接覆蓋掉現在的整份菜單</b>，套用前建議先把現在的菜單也存一份，以防萬一。</p>
-                <div style="display:flex;gap:6px;margin-bottom:16px;">
-                    <input type="text" id="presetNameInput" placeholder="預設集名稱，例如：冬季菜單" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;">
-                    <button class="btn btn-primary" style="padding:10px 16px;" onclick="saveMenuPreset()">💾 存成預設集</button>
-                </div>
-                <div id="presetsList"></div>
-                <div class="empty-state" id="presetsEmpty" style="display:none;">目前沒有存過任何預設集</div>
             </div>
         </main>
     </div>
@@ -212,9 +199,8 @@
         document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
         document.getElementById(paneId).classList.add('active');
         document.querySelectorAll('.filter-tabs button').forEach(b => b.classList.toggle('active', b.dataset.pane === paneId));
-        const titles = { 'pane-items': '🍗 菜單品項', 'pane-addons': '➕ 加購項目', 'pane-groups': '🎛️ 客製選項', 'pane-presets': '🗂️ 菜單預設集' };
+        const titles = { 'pane-items': '🍗 菜單品項', 'pane-addons': '➕ 加購項目', 'pane-groups': '🎛️ 客製選項' };
         document.getElementById('pageTitle').textContent = titles[paneId];
-        if (paneId === 'pane-presets') loadMenuPresets();
     }
 
     async function tryLogin() {
@@ -245,9 +231,7 @@
         loadAll();
     }
 
-    // ★ 2026-07-22 重大bug修正：原理跟tool_orders.html同一個bug，見那邊註解
-    const UNINJECTED_MARKER = '%%' + 'PW' + '%%';
-    if (INJECTED_PASSWORD !== UNINJECTED_MARKER) {
+    if (INJECTED_PASSWORD !== '%%PW%%') {
         password = INJECTED_PASSWORD;
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('loginBox').style.display = 'none';
@@ -509,39 +493,14 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-                    <div class="row" style="align-items:center;gap:10px;margin-top:6px;">
-                        ${it.image ? `<img src="${escapeHtml(it.image)}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;flex-shrink:0;">` : `<div style="width:56px;height:56px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:11px;color:#94a3b8;flex-shrink:0;">無照片</div>`}
-                        <div style="flex:1;">
-                            <!-- ★ 2026-07-22 簡化：手機直接上傳這個方式，因為手機瀏覽器（尤其
-                                 LINE的LIFF）跳出照片選擇器時容易跟全螢幕監控機制打架，搞了
-                                 好幾輪還是不穩定，乾脆拿掉，只留下貼網址這個方式——完全不會
-                                 跳出任何原生視窗，最穩定 -->
-                            <div style="display:flex;gap:6px;margin-bottom:6px;">
-                                <input type="text" id="imgUrlInput${idx}" placeholder="貼上圖片網址" style="flex:1;padding:6px 8px;font-size:12px;border:1.5px solid #e2e8f0;border-radius:6px;">
-                                <button type="button" class="btn" style="padding:6px 10px;font-size:12px;background:#1a3a5c;color:#fff;flex-shrink:0;" onclick="applyMenuImageUrl(${idx})">套用</button>
-                            </div>
-                            ${it.image ? `<button type="button" class="btn" style="padding:6px 12px;font-size:12px;background:#fee2e2;color:#b91c1c;" onclick="removeMenuImage(${idx})">移除照片</button>` : ''}
-                            <span id="imgUploadStatus${idx}" style="font-size:11px;color:#94a3b8;margin-left:6px;"></span>
-                        </div>
-                    </div>
                     <div class="row">
                         <div class="field-col">
                             <span class="field-label">價格</span>
-                            <input type="number" class="num-input" value="${it.price || 0}" oninput="onFieldChange(${idx},'price',this.value); updateMarginDisplay(${idx});" id="priceInput${idx}">
+                            <input type="number" class="num-input" value="${it.price || 0}" oninput="onFieldChange(${idx},'price',this.value)">
                         </div>
-                        <div class="field-col">
-                            <span class="field-label">成本（選填，填了才能算毛利率）</span>
-                            <input type="number" class="num-input" value="${it.cost || 0}" oninput="onFieldChange(${idx},'cost',this.value); updateMarginDisplay(${idx});" id="costInput${idx}">
-                        </div>
-                    </div>
-                    <div class="row">
                         <div class="field-col">
                             <span class="field-label">每日限量（0＝不限量）</span>
                             <input type="number" class="num-input" value="${it.safetyStock || 0}" oninput="onFieldChange(${idx},'safetyStock',this.value)">
-                        </div>
-                        <div class="field-col">
-                            <span class="field-label">毛利率</span>
-                            <div id="marginDisplay${idx}" style="padding:9px 10px;font-size:15px;font-weight:900;">${computeMarginText(it.price, it.cost)}</div>
                         </div>
                     </div>
                     ${it.safetyStock > 0 ? `<div class="section-hint" style="margin:6px 4px 0;">今日已賣出 ${it.soldToday || 0} 份，剩餘 ${Math.max(0, it.safetyStock - (it.soldToday || 0))} 份</div>` : ''}
@@ -553,62 +512,10 @@
         list.innerHTML = html;
     }
 
-    // ★ 2026-07-22 新增：即時算出這個品項的毛利率文字，成本沒填（0）就顯示
-    // 「未填成本」，不要顯示100%這種誤導的假數字
-    function computeMarginText(price, cost) {
-        const p = Number(price) || 0;
-        const c = Number(cost) || 0;
-        if (c <= 0 || p <= 0) return '<span style="color:#94a3b8;font-weight:400;font-size:12px;">未填成本</span>';
-        const margin = Math.round(((p - c) / p) * 100);
-        const color = margin >= 50 ? '#16a34a' : (margin >= 30 ? '#d97706' : '#dc2626');
-        return `<span style="color:${color};">${margin}%</span>`;
-    }
-    function updateMarginDisplay(idx) {
-        const priceEl = document.getElementById('priceInput' + idx);
-        const costEl = document.getElementById('costInput' + idx);
-        const displayEl = document.getElementById('marginDisplay' + idx);
-        if (priceEl && costEl && displayEl) {
-            displayEl.innerHTML = computeMarginText(priceEl.value, costEl.value);
-        }
-    }
-
     function onFieldChange(idx, field, value) {
         if (field === 'status') menuItems[idx][field] = value;
         else menuItems[idx][field] = Number(value) || 0;
         markDirty();
-    }
-
-    // ★ 2026-07-22 簡化：手機直接上傳照片這個方式（選檔案、壓縮、上傳
-    // API），因為手機瀏覽器（尤其LINE的LIFF）跳出照片選擇器時，容易跟
-    // 全螢幕退出保護機制打架，搞了好幾輪還是不穩定，乾脆整套拿掉，
-    // 只留下「貼上網址」這個完全不會跳出任何原生視窗、最穩定的方式。
-
-    // ★ 直接貼上已經在網路上的圖片網址，不用碰手機的檔案選擇器。
-    // 只是單純把網址存進這個品項的image欄位（跟改價格、改名稱一樣，
-    // 要等按最下面「儲存所有變更」才會真的寫進試算表），不用呼叫任何
-    // 上傳API，因為圖片本來就已經在網路上了，不需要我們這邊處理。
-    function applyMenuImageUrl(idx) {
-        const input = document.getElementById('imgUrlInput' + idx);
-        const url = (input.value || '').trim();
-        if (!url) {
-            const statusEl = document.getElementById('imgUploadStatus' + idx);
-            if (statusEl) statusEl.textContent = '❌ 請先貼上網址';
-            return;
-        }
-        if (!/^https?:\/\//i.test(url)) {
-            const statusEl = document.getElementById('imgUploadStatus' + idx);
-            if (statusEl) statusEl.textContent = '❌ 網址要用 http:// 或 https:// 開頭';
-            return;
-        }
-        menuItems[idx].image = url;
-        markDirty();
-        renderMenu();
-    }
-
-    function removeMenuImage(idx) {
-        menuItems[idx].image = '';
-        markDirty();
-        renderMenu();
     }
 
     function toggleItemGroup(idx, groupName) {
@@ -733,83 +640,6 @@
         markDirty();
         renderGroups();
         renderMenu();
-    }
-
-    // ★ 2026-07-22 新增：菜單預設集
-    async function loadMenuPresets() {
-        const list = document.getElementById('presetsList');
-        const emptyEl = document.getElementById('presetsEmpty');
-        list.innerHTML = '<div class="loading">載入中...</div>';
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getMenuPresets&password=${encodeURIComponent(password)}`);
-            const data = await resp.json();
-            if (data.status !== 'success') { list.innerHTML = ''; showToast('❌ ' + data.message); return; }
-            const presets = data.presets || [];
-            if (presets.length === 0) {
-                list.innerHTML = '';
-                emptyEl.style.display = 'block';
-                return;
-            }
-            emptyEl.style.display = 'none';
-            list.innerHTML = presets.map(p => `
-                <div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <div>
-                        <div style="font-weight:900;font-size:15px;">${escapeHtml(p.name)}</div>
-                        <div style="font-size:11px;color:var(--gray);">儲存於 ${escapeHtml(p.savedAt)}</div>
-                    </div>
-                    <button class="btn" style="background:var(--primary);color:#fff;padding:8px 16px;" onclick="applyMenuPreset('${escapeHtml(p.name).replace(/'/g, "\\'")}')">套用</button>
-                </div>`).join('');
-        } catch (err) {
-            list.innerHTML = '';
-            showToast('❌ 讀取菜單預設集失敗：' + err.message);
-        }
-    }
-
-    async function saveMenuPreset() {
-        const nameInput = document.getElementById('presetNameInput');
-        const name = nameInput.value.trim();
-        if (!name) { showToast('❌ 請輸入預設集名稱'); return; }
-        try {
-            const resp = await fetch(WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'saveMenuPreset', password, operator: INJECTED_OPERATOR, name })
-            });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                showToast(`✅ 已存成預設集「${name}」`);
-                nameInput.value = '';
-                loadMenuPresets();
-            } else {
-                showToast('❌ ' + data.message);
-            }
-        } catch (err) {
-            showToast('❌ 儲存失敗：' + err.message);
-        }
-    }
-
-    async function applyMenuPreset(name) {
-        if (isDirty && !confirm(`目前的菜單有還沒儲存的變更，套用預設集會直接覆蓋掉現在的整份菜單（包含還沒存檔的變更），確定要套用「${name}」嗎？`)) return;
-        if (!isDirty && !confirm(`確定要套用預設集「${name}」嗎？這會直接覆蓋掉現在的整份菜單。`)) return;
-        try {
-            const resp = await fetch(WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'applyMenuPreset', password, operator: INJECTED_OPERATOR, name })
-            });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                showToast(`✅ 已套用預設集「${name}」`);
-                isDirty = false;
-                document.getElementById('saveBar').classList.remove('show');
-                loadAll(); // 重新載入整份菜單，畫面才會顯示套用後的最新內容
-                switchPane('pane-items');
-            } else {
-                showToast('❌ ' + data.message);
-            }
-        } catch (err) {
-            showToast('❌ 套用失敗：' + err.message);
-        }
     }
 
     async function saveAllChanges() {

@@ -47,7 +47,7 @@
     #rangeFoot td { font-weight:900; background:var(--light); }
 
     main { padding:12px; }
-    .summary-cards { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:14px; }
+    .summary-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
     .card { border-radius:14px; padding:12px 10px; color:#fff; }
     .card.blue { background:linear-gradient(135deg,#1a3a5c,#2e6b9e); }
     .card.amber { background:linear-gradient(135deg,#92400e,#d97706); }
@@ -112,7 +112,6 @@
         <div class="filter-tabs">
             <button class="active" data-view="daily" onclick="switchView('daily')">📅 單日進貨</button>
             <button data-view="range" onclick="switchView('range')">📊 多天損益彙總</button>
-            <button data-view="suppliers" onclick="switchView('suppliers')">🏪 供應商比價</button>
         </div>
 
         <main>
@@ -124,12 +123,6 @@
 
                 <div class="section-label">今天進了什麼貨</div>
                 <div id="entriesList"></div>
-                <!-- ★ 2026-07-22 新增：打字時自動跳出之前用過的品名，不用每次
-                     都重新打一次「雞胸肉」「洋蔥」這些常買的東西，手機打字
-                     省很多力氣。內容是從最近30天的進貨紀錄裡收集來的，不用
-                     另外維護一份清單。 -->
-                <datalist id="itemNameSuggestions"></datalist>
-                <datalist id="supplierSuggestions"></datalist>
                 <button class="add-row-btn" onclick="addEntryRow()">＋ 新增一筆進貨</button>
                 <div class="empty-state" id="entriesEmpty" style="display:none;">今天還沒登錄任何進貨</div>
             </div>
@@ -151,14 +144,6 @@
                     </table>
                 </div>
                 <div class="empty-state" id="rangeEmpty" style="display:none;">這個區間沒有資料</div>
-            </div>
-
-            <!-- ★ 2026-07-22 新增：供應商比價 -->
-            <div id="suppliersArea" style="display:none;">
-                <div class="loading" id="suppliersLoading" style="display:none;">載入中...</div>
-                <div class="section-hint" style="margin-bottom:10px;">只列出「最近60天內，曾經跟2家以上不同廠商叫過貨」的品項，才有比較的意義；只跟同一家廠商叫過的，不會出現在這裡。</div>
-                <div id="suppliersContent"></div>
-                <div class="empty-state" id="suppliersEmpty" style="display:none;">目前沒有可以比較的品項</div>
             </div>
         </main>
     </div>
@@ -204,29 +189,6 @@
         document.getElementById('saveBar').style.display = 'block';
     }
 
-    // ★ 2026-07-22 新增：載入最近進貨用過的品名，填進datalist當自動建議，
-    // 也順便把「品名→常配對廠商」的對照表填好，選品名時可以自動帶出廠商。
-    // 只需要載入一次（登入之後），不用每次切換日期都重新抓
-    async function loadItemNameSuggestions() {
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getRecentPurchaseItemNames&password=${encodeURIComponent(password)}`);
-            const data = await resp.json();
-            if (data.status === 'success') {
-                const list = document.getElementById('itemNameSuggestions');
-                list.innerHTML = (data.itemNames || []).map(name => `<option value="${escapeHtml(name)}">`).join('');
-
-                itemSupplierMap = data.itemSupplierMap || {};
-
-                // 廠商建議清單：把對照表裡出現過的廠商名稱去重複，一起放進去
-                const supplierSet = new Set(Object.values(itemSupplierMap));
-                const supplierList = document.getElementById('supplierSuggestions');
-                supplierList.innerHTML = Array.from(supplierSet).map(name => `<option value="${escapeHtml(name)}">`).join('');
-            }
-        } catch (err) {
-            console.warn('[進貨品名建議] 載入失敗，不影響手動輸入：', err.message);
-        }
-    }
-
     // ────────────────────────────────────────────
     // 登入
     // ────────────────────────────────────────────
@@ -258,12 +220,9 @@
         document.getElementById('dateInput').value = currentDate;
         initRangeDefaults();
         loadForDate();
-        loadItemNameSuggestions();
     }
 
-    // ★ 2026-07-22 重大bug修正：原理跟tool_orders.html同一個bug，見那邊註解
-    const UNINJECTED_MARKER = '%%' + 'PW' + '%%';
-    if (INJECTED_PASSWORD !== UNINJECTED_MARKER) {
+    if (INJECTED_PASSWORD !== '%%PW%%') {
         password = INJECTED_PASSWORD;
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('loginBox').style.display = 'none';
@@ -271,7 +230,6 @@
             document.getElementById('dateInput').value = currentDate;
             initRangeDefaults();
             loadForDate();
-            loadItemNameSuggestions();
         });
     }
 
@@ -279,58 +237,18 @@
     // 單日進貨 ↔ 多天損益彙總，切換畫面
     // ────────────────────────────────────────────
     let rangeLoadedOnce = false;
-    let suppliersLoadedOnce = false;
     function switchView(view) {
         document.querySelectorAll('.filter-tabs button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
         document.getElementById('dailyDateRow').style.display = view === 'daily' ? 'flex' : 'none';
         document.getElementById('rangeDateRow').style.display = view === 'range' ? 'flex' : 'none';
         document.getElementById('contentArea').style.display = view === 'daily' ? 'block' : 'none';
         document.getElementById('rangeArea').style.display = view === 'range' ? 'block' : 'none';
-        document.getElementById('suppliersArea').style.display = view === 'suppliers' ? 'block' : 'none';
         document.getElementById('saveBar').style.display = (view === 'daily' && isDirty) ? 'block' : 'none';
         if (view === 'range' && !rangeLoadedOnce) {
             rangeLoadedOnce = true;
             renderRangeReport();
         }
-        if (view === 'suppliers' && !suppliersLoadedOnce) {
-            suppliersLoadedOnce = true;
-            loadSupplierPriceCompare();
-        }
     }
-
-    // ★ 2026-07-22 新增：供應商比價
-    async function loadSupplierPriceCompare() {
-        document.getElementById('suppliersLoading').style.display = 'block';
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getSupplierPriceCompare&password=${encodeURIComponent(password)}`);
-            const data = await resp.json();
-            if (data.status !== 'success') { showToast('❌ ' + data.message); return; }
-
-            const comparisons = data.comparisons || [];
-            const contentEl = document.getElementById('suppliersContent');
-            const emptyEl = document.getElementById('suppliersEmpty');
-            if (comparisons.length === 0) {
-                contentEl.innerHTML = '';
-                emptyEl.style.display = 'block';
-                return;
-            }
-            emptyEl.style.display = 'none';
-            contentEl.innerHTML = comparisons.map(c => `
-                <div class="card" style="margin-bottom:10px;">
-                    <div style="font-weight:900;font-size:15px;margin-bottom:8px;">${escapeHtml(c.item)}</div>
-                    ${c.suppliers.map((s, idx) => `
-                        <div style="display:flex;justify-content:space-between;padding:6px 0;${idx > 0 ? 'border-top:1px solid var(--border);' : ''}">
-                            <span style="font-size:13px;color:${idx === 0 ? '#16a34a' : 'var(--gray)'};font-weight:${idx === 0 ? '700' : '400'};">${idx === 0 ? '🏆 ' : ''}${escapeHtml(s.supplier)}</span>
-                            <span style="font-size:13px;font-weight:700;">$${s.amount}<span style="color:var(--gray);font-weight:400;font-size:11px;"> (${s.date})</span></span>
-                        </div>`).join('')}
-                </div>`).join('');
-        } catch (err) {
-            showToast('❌ 讀取供應商比價失敗：' + err.message);
-        } finally {
-            document.getElementById('suppliersLoading').style.display = 'none';
-        }
-    }
-
 
     function initRangeDefaults() {
         const today = new Date();
@@ -427,7 +345,7 @@
             // 只顯示「食材成本」這個科別的明細，符合陽春版「進貨=食材成本」的簡化定位
             entries = ((recordData.record && recordData.record.entries) || [])
                 .filter(en => en.category === '食材成本')
-                .map(en => ({ item: en.item || '', amount: Number(en.amount) || 0, supplier: en.supplier || '' }));
+                .map(en => ({ item: en.item || '', amount: Number(en.amount) || 0 }));
 
             renderEntries();
 
@@ -442,33 +360,19 @@
     }
 
     function renderSummary(day, hasManualRecord) {
-        const revenue = day.revenue || 0;
-        const foodCost = day.foodCost || 0;
-        const grossProfit = revenue - foodCost;
-        // ★ 2026-07-22 新增：食材成本佔營收比例。餐飲業一般健康的原物料成本率
-        // 大概落在 28%-35% 之間（依業態不同），超過這個範圍代表可能利潤被
-        // 吃掉了，用顏色直接提醒，不用自己心算百分比。沒有營收（例如公休）
-        // 那天不算，避免除以0。
-        const foodCostRatio = revenue > 0 ? Math.round((foodCost / revenue) * 100) : null;
-        const ratioColor = foodCostRatio === null ? 'blue' : (foodCostRatio <= 35 ? 'green' : (foodCostRatio <= 45 ? 'amber' : 'red'));
-        const ratioText = foodCostRatio === null ? '－' : foodCostRatio + '%';
-
         document.getElementById('summaryCards').innerHTML = `
-            <div class="card blue"><h4>當日營收</h4><div class="val">$${revenue}</div></div>
-            <div class="card amber"><h4>食材成本</h4><div class="val">$${foodCost}</div></div>
-            <div class="card ${grossProfit >= 0 ? 'green' : 'red'}"><h4>約略毛利</h4><div class="val">$${grossProfit}</div></div>
-            <div class="card ${ratioColor}"><h4>食材成本率</h4><div class="val">${ratioText}</div></div>
+            <div class="card blue"><h4>當日營收</h4><div class="val">$${day.revenue || 0}</div></div>
+            <div class="card amber"><h4>食材成本</h4><div class="val">$${day.foodCost || 0}</div></div>
+            <div class="card ${(day.profit || 0) >= 0 ? 'green' : 'red'}"><h4>約略毛利</h4><div class="val">$${(day.revenue||0) - (day.foodCost||0)}</div></div>
         `;
         document.getElementById('sourceLabel').textContent = hasManualRecord
-            ? '📋 食材成本＝下方登錄的進貨總和，營收＝LINE訂單實際成交金額｜💡 食材成本率一般抓28%-35%算健康，超過45%要留意'
+            ? '📋 食材成本＝下方登錄的進貨總和，營收＝LINE訂單實際成交金額'
             : '📋 這天還沒登錄過進貨，食材成本先顯示為0；營收＝LINE訂單實際成交金額';
     }
 
     // ────────────────────────────────────────────
-    // 進貨明細（品名＋廠商＋成本，統一算食材成本）
+    // 進貨明細（品名＋成本，陽春版不分供應商/固定非固定，統一算食材成本）
     // ────────────────────────────────────────────
-    let itemSupplierMap = {}; // ★ 2026-07-22 新增：品名 → 常配對廠商的對照表，選品名時自動帶出來用
-
     function renderEntries() {
         const list = document.getElementById('entriesList');
         const emptyEl = document.getElementById('entriesEmpty');
@@ -476,34 +380,19 @@
         emptyEl.style.display = 'none';
         list.innerHTML = entries.map((en, idx) => `
             <div class="entry-card">
-                <div class="entry-row" style="margin-bottom:6px;">
-                    <input type="text" class="text-input" value="${escapeHtml(en.item)}" placeholder="品名，例如：雞胸肉" list="itemNameSuggestions" oninput="onItemNameChange(${idx},this.value)">
+                <div class="entry-row">
+                    <input type="text" class="text-input" value="${escapeHtml(en.item)}" placeholder="品名，例如：雞胸肉" oninput="onEntryChange(${idx},'item',this.value)">
                     <input type="number" class="num-input" value="${en.amount || 0}" placeholder="成本" oninput="onEntryChange(${idx},'amount',this.value)">
                     <button class="entry-del-btn" onclick="removeEntry(${idx})" title="刪除">✕</button>
-                </div>
-                <div class="entry-row">
-                    <input type="text" class="text-input" style="font-size:12px;" value="${escapeHtml(en.supplier || '')}" placeholder="🏪 廠商（例如：OO肉商）" list="supplierSuggestions" oninput="onEntryChange(${idx},'supplier',this.value)">
                 </div>
             </div>`).join('');
     }
     function onEntryChange(idx, field, value) {
-        entries[idx][field] = (field === 'amount') ? (Number(value) || 0) : value;
+        entries[idx][field] = (field === 'item') ? value : (Number(value) || 0);
         markDirty();
-    }
-    // ★ 2026-07-22 新增：品名改變時，如果這個品名之前有配對過的廠商紀錄，
-    // 自動把廠商欄位也一起帶出來——但只在「廠商欄位目前是空的」時才自動
-    // 帶入，不要覆蓋掉使用者可能已經手動改過的廠商
-    function onItemNameChange(idx, value) {
-        entries[idx].item = value;
-        const matchedSupplier = itemSupplierMap[value.trim()];
-        if (matchedSupplier && !entries[idx].supplier) {
-            entries[idx].supplier = matchedSupplier;
-        }
-        markDirty();
-        renderEntries();
     }
     function addEntryRow() {
-        entries.push({ item: '', amount: 0, supplier: '' });
+        entries.push({ item: '', amount: 0 });
         markDirty();
         renderEntries();
     }
@@ -519,7 +408,7 @@
     async function saveEntries() {
         const entriesForSave = entries
             .filter(en => (en.item || '').trim())
-            .map(en => ({ category: '食材成本', supplier: (en.supplier || '').trim(), item: en.item.trim(), amount: Number(en.amount) || 0 }));
+            .map(en => ({ category: '食材成本', supplier: '', item: en.item.trim(), amount: Number(en.amount) || 0 }));
 
         try {
             const resp = await fetch(WEB_APP_URL, {

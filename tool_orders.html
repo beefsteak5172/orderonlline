@@ -180,19 +180,8 @@
                 <label class="auto-refresh-label">
                     <input type="checkbox" id="autoRefreshToggle" checked> 每30秒自動更新
                 </label>
-                <label class="auto-refresh-label">
-                    <input type="checkbox" id="sortByPickupTimeToggle" onchange="renderOrders()"> 🕐 依取餐時間排序
-                </label>
                 <button class="refresh-btn" onclick="loadCurrentView()">🔄 立即重新整理</button>
-                <button class="refresh-btn" onclick="openPrepListModal()">📝 備料清單</button>
-                <button class="refresh-btn" onclick="openKitchenDisplay()">🖥️ 廚房大螢幕</button>
             </div>
-        </div>
-
-        <!-- ★ 2026-07-22 新增：公休/營業中開關，切換後客人點餐頁面會立刻反映 -->
-        <div id="storeStatusBar" style="display:flex;align-items:center;gap:10px;background:#f0f0f0;padding:10px 14px;border-radius:10px;margin-bottom:10px;">
-            <span id="storeStatusLabel" style="font-weight:700;">🟢 目前：營業中</span>
-            <button class="btn" id="storeStatusToggleBtn" onclick="toggleStoreStatus()" style="margin-left:auto;background:#e74c3c;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:700;cursor:pointer;">設為公休</button>
         </div>
 
         <!-- ★ 頂層切換：訂單管理／儲值管理，兩個是完全獨立的資料表，不會互相干擾 -->
@@ -200,106 +189,6 @@
             <button class="filter-tab active" id="viewTabOrders" onclick="setView('orders')">📋 訂單管理</button>
             <button class="filter-tab" id="viewTabTopup" onclick="setView('topup')">💰 儲值管理</button>
             <button class="filter-tab" id="viewTabScreenshots" onclick="setView('screenshots')">💳 付款回報</button>
-            <button class="filter-tab" id="viewTabReport" onclick="setView('report')">📊 營業報表</button>
-            <button class="filter-tab" id="viewTabShift" onclick="setView('shift')">👥 班務</button>
-            <button class="filter-tab" id="viewTabSettings" onclick="setView('settings')">⚙️ 系統設定</button>
-        </div>
-
-        <!-- ★ 2026-07-22 新增：班務（交接班記事＋員工打卡），所有角色（含staff）都看得到 -->
-        <div id="shiftView" style="display:none;">
-            <div class="section-label" style="margin-bottom:8px;">⏰ 上下班打卡</div>
-            <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:20px;display:flex;gap:8px;">
-                <button onclick="clockInOut('in')" style="flex:1;padding:14px;border:none;border-radius:10px;background:var(--success);color:#fff;font-weight:900;font-size:15px;cursor:pointer;">🟢 上班打卡</button>
-                <button onclick="clockInOut('out')" style="flex:1;padding:14px;border:none;border-radius:10px;background:var(--danger);color:#fff;font-weight:900;font-size:15px;cursor:pointer;">🔴 下班打卡</button>
-            </div>
-            <div id="clockRecordsList" style="margin-bottom:20px;"></div>
-
-            <div class="section-label" style="margin-bottom:8px;">📝 交接班記事本</div>
-            <div style="background:#fff;border-radius:12px;padding:14px;">
-                <div style="display:flex;gap:6px;margin-bottom:10px;">
-                    <input type="text" id="shiftNoteInput" placeholder="例如：今天雞肉少一批，要注意" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
-                    <button onclick="addShiftNote()" style="padding:8px 16px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-weight:700;cursor:pointer;">送出</button>
-                </div>
-                <div id="shiftNotesList"></div>
-            </div>
-        </div>
-
-        <!-- ★ 2026-07-22 新增：系統設定（功能開關＋排程公休＋健康度＋退款＋匯出） -->
-        <div id="settingsView" style="display:none;">
-            <div class="section-label" style="margin-bottom:8px;">🩺 系統健康度</div>
-            <div id="healthDashboard" style="margin-bottom:20px;"></div>
-
-            <div class="section-label" style="margin-bottom:8px;">🔧 功能開關</div>
-            <div class="hint" style="margin-bottom:10px;">關閉的功能，客人/店家都看不到、也用不到，不用擔心關掉會出錯——單純是「先不啟用」而已，之後隨時可以再打開。</div>
-            <div id="featureTogglesList" style="margin-bottom:20px;"></div>
-
-            <!-- ★ 2026-07-22 新增：裝置限制開關（手機/LINE專用），這個不是
-                 Code.gs管的功能開關，是Cloudflare那一層的門禁，獨立存放，
-                 所以另外用一個區塊、另外呼叫獨立的API -->
-            <div class="section-label" style="margin-bottom:8px;">🔒 裝置存取限制</div>
-            <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:20px;">
-                <div class="hint" style="margin-bottom:10px;">開啟後，只有手機上的LINE APP能打開點餐/後台頁面，電腦或一般瀏覽器會被擋掉（後台kiosk電腦有另外的金鑰例外，不受影響）。關閉的話，電腦、一般瀏覽器都能直接開。</div>
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <span id="deviceRestrictionStatus" style="font-weight:700;">載入中...</span>
-                    <label class="toggle-switch" style="position:relative;width:44px;height:24px;flex-shrink:0;">
-                        <input type="checkbox" id="deviceRestrictionToggle" onchange="toggleDeviceRestriction(this.checked)" style="opacity:0;width:0;height:0;">
-                        <span id="deviceRestrictionSlider" style="position:absolute;inset:0;background:#cbd5e1;border-radius:24px;transition:.2s;"></span>
-                        <span id="deviceRestrictionKnob" style="position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;"></span>
-                    </label>
-                </div>
-            </div>
-
-            <div class="section-label" style="margin-bottom:8px;">📅 排程公休</div>
-            <div class="hint" style="margin-bottom:10px;">設定好之後，符合的日期會自動變成公休，不用每次臨時手動點「設為公休」。</div>
-            <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:20px;">
-                <div style="font-weight:700;font-size:13px;margin-bottom:8px;">每週固定公休日</div>
-                <div id="weeklyClosedDaysList" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
-                <div style="font-weight:700;font-size:13px;margin:14px 0 8px;">預先排定的公休區間（例如過年連休）</div>
-                <div id="closureRangesList"></div>
-                <button onclick="addClosureRange()" style="margin-top:6px;padding:8px 14px;border:1.5px dashed var(--border);background:none;border-radius:8px;color:var(--gray);font-size:13px;font-weight:700;cursor:pointer;">＋新增公休區間</button>
-                <button onclick="saveClosureSchedule()" style="display:block;margin-top:14px;width:100%;padding:10px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-weight:700;cursor:pointer;">💾 儲存排程公休設定</button>
-            </div>
-
-            <div class="section-label" style="margin-bottom:8px;">💸 退款/補償紀錄</div>
-            <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:20px;">
-                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-                    <input type="text" id="refundOrderNumber" placeholder="訂單編號" style="flex:1;min-width:120px;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
-                    <input type="number" id="refundAmount" placeholder="退款金額" style="width:110px;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
-                </div>
-                <input type="text" id="refundReason" placeholder="退款原因（例如：出餐錯誤）" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:10px;">
-                <button onclick="addRefundRecord()" style="width:100%;padding:10px;border:none;border-radius:8px;background:var(--danger);color:#fff;font-weight:700;cursor:pointer;">登記這筆退款</button>
-                <div id="refundRecordsList" style="margin-top:14px;"></div>
-            </div>
-
-            <div class="section-label" style="margin-bottom:8px;">📤 訂單匯出</div>
-            <div style="background:#fff;border-radius:12px;padding:14px;">
-                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
-                    <label style="font-size:12px;color:var(--gray);">從</label>
-                    <input type="date" id="exportFromDate" style="padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
-                    <label style="font-size:12px;color:var(--gray);">到</label>
-                    <input type="date" id="exportToDate" style="padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
-                </div>
-                <button onclick="exportOrdersCsv()" style="width:100%;padding:10px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-weight:700;cursor:pointer;">📥 匯出這段期間的訂單（CSV，可用Excel開啟）</button>
-            </div>
-
-            <div class="section-label" style="margin-bottom:8px;margin-top:20px;">📊 顧客/銷售分析</div>
-            <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
-                    <div style="flex:1;min-width:120px;">
-                        <div style="font-size:11px;color:var(--gray);">回購率（近90天）</div>
-                        <div id="repeatRateDisplay" style="font-size:18px;font-weight:900;color:var(--primary);">載入中...</div>
-                    </div>
-                </div>
-                <div style="font-weight:700;font-size:13px;margin-bottom:6px;">🔥 星期幾/時段銷售熱力圖（近90天）</div>
-                <div style="overflow-x:auto;">
-                    <div id="heatmapGrid" style="min-width:600px;"></div>
-                </div>
-            </div>
-
-            <div style="background:#fff;border-radius:12px;padding:14px;">
-                <div style="font-weight:700;font-size:13px;margin-bottom:8px;">❌ 取消原因統計</div>
-                <div id="cancelReasonStatsDisplay"></div>
-            </div>
         </div>
 
         <div id="ordersView">
@@ -355,18 +244,6 @@
             <div id="screenshotsGrid"></div>
             <div class="empty-state" id="screenshotsEmptyState" style="display:none;">目前沒有付款回報 🎉</div>
         </div>
-
-        <!-- ★ 2026-07-22 新增：簡易營業報表 -->
-        <div id="reportView" style="display:none;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-                <label style="font-size:13px;color:var(--gray);">查詢日期：</label>
-                <input type="date" id="reportSummaryDate" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
-                <button onclick="loadSalesSummary()" style="padding:8px 16px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-weight:700;font-size:13px;cursor:pointer;">🔍 查詢</button>
-                <button onclick="document.getElementById('reportSummaryDate').valueAsDate=new Date();loadSalesSummary();" style="padding:8px 16px;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--gray);font-weight:700;font-size:13px;cursor:pointer;">回到今天</button>
-            </div>
-            <div class="loading" id="reportLoadingArea">載入中...</div>
-            <div id="reportSummaryContent"></div>
-        </div>
     </div>
 </div>
 
@@ -389,30 +266,6 @@
         </div>
         <div id="tableModalBody"></div>
     </div>
-</div>
-
-<!-- ★ 2026-07-22 新增：備料清單彈窗 -->
-<div class="table-modal-overlay" id="prepListModalOverlay">
-    <div class="table-modal" id="prepListModal">
-        <div class="table-modal-head">
-            <h3>📝 今日備料清單</h3>
-            <div class="no-print" style="display:flex;gap:8px;">
-                <button class="btn btn-primary" onclick="window.print()">🖨️ 列印</button>
-                <button class="btn" style="background:var(--light);color:var(--gray);padding:12px 16px;" onclick="closePrepListModal()">✕</button>
-            </div>
-        </div>
-        <div id="prepListModalBody"></div>
-    </div>
-</div>
-
-<!-- ★ 2026-07-22 新增：廚房大螢幕模式——全螢幕、大字、簡化顯示，適合投在
-     廚房螢幕上，只顯示還在處理中的訂單，字級刻意放大方便遠一點也看得清楚 -->
-<div id="kitchenDisplayOverlay" style="display:none;position:fixed;inset:0;background:#0f172a;z-index:5000;overflow-y:auto;padding:20px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="color:#fff;font-size:24px;">🍳 出餐看板</h2>
-        <button onclick="closeKitchenDisplay()" style="padding:10px 20px;border:none;border-radius:10px;background:#dc2626;color:#fff;font-weight:900;font-size:16px;cursor:pointer;">✕ 關閉</button>
-    </div>
-    <div id="kitchenDisplayGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;"></div>
 </div>
 
 <script>
@@ -508,31 +361,13 @@
     // 才補建立，不影響其他功能。
     const INJECTED_PASSWORD = '%%PW%%';
     const INJECTED_OPERATOR = '%%OPERATOR%%'; // ★ 2026-07-21 新增：操作紀錄用的登入者名稱
-    const INJECTED_ROLE = '%%ROLE%%'; // ★ 2026-07-22 新增：員工帳號分權限用
-    // ★ 2026-07-22 重大bug修正：原本這裡直接寫 if (INJECTED_PASSWORD !== '%%PW%%')，
-    // 但 admin_hub_basic.html 那邊的替換邏輯是「整份文件裡所有 %%PW%% 都换成
-    // 真正密碼」，這一行比對用的 '%%PW%%' 字面文字，也會被一起換掉，換完之後
-    // 兩邊變成同一組密碼字串，比對永遠判定為「相等」，導致自動登入判斷失效，
-    // 系統誤以為密碼沒有被注入，才會又跳出這個工具自己的獨立登入畫面，要求
-    // 使用者重新輸入一次密碼。改用「執行階段才組合出來的字串」當比對基準，
-    // 這個字串在原始檔案文字裡，不會以「%%PW%%」這樣連續完整的字元出現，
-    // 所以不會被前面那個整批替換的動作誤傷。
-    const UNINJECTED_MARKER = '%%' + 'PW' + '%%';
-    if (INJECTED_PASSWORD !== UNINJECTED_MARKER) {
+    if (INJECTED_PASSWORD !== '%%PW%%') {
         adminPassword = INJECTED_PASSWORD;
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('loginBox').style.display = 'none';
             document.getElementById('dashboardArea').style.display = 'block';
             loadCurrentView();
             startAutoRefresh();
-            fetchStoreStatus(); // ★ 2026-07-22 新增：載入時先確認目前公休狀態
-            loadCustomerNotes(); // ★ 2026-07-22 新增：載入熟客備註
-            // ★ 2026-07-22 新增：員工帳號分權限——staff角色藏起系統設定分頁，
-            // 那裡有功能開關、退款登記這些比較敏感的操作
-            if (INJECTED_ROLE === 'staff') {
-                const settingsTabBtn = document.getElementById('viewTabSettings');
-                if (settingsTabBtn) settingsTabBtn.style.display = 'none';
-            }
             const buildAudioCtxOnce = () => {
                 try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) {}
                 document.removeEventListener('click', buildAudioCtxOnce);
@@ -541,634 +376,18 @@
         });
     }
 
-    // ★ 2026-07-22 新增：熟客備註載入與儲存
-    async function loadCustomerNotes() {
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getCustomerNotes&password=${encodeURIComponent(adminPassword)}`);
-            const data = await resp.json();
-            if (data.status === 'success') {
-                window.customerNotes = data.notes || {};
-            }
-        } catch (err) {
-            console.warn('讀取顧客備註失敗：', err.message);
-        }
-    }
-
-    async function saveCustomerNote(phone, rowNumber) {
-        const input = document.getElementById('custNote_' + rowNumber);
-        const note = (input.value || '').trim();
-        try {
-            const resp = await fetch(WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'setCustomerNote', password: adminPassword, operator: INJECTED_OPERATOR, phone, note })
-            });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                window.customerNotes = window.customerNotes || {};
-                if (note) window.customerNotes[phone] = note; else delete window.customerNotes[phone];
-                showNotice('✅ 備註已儲存', 'ok');
-            } else {
-                showNotice('❌ ' + data.message, 'err');
-            }
-        } catch (err) {
-            showNotice('儲存失敗：' + err.message, 'err');
-        }
-    }
-
-    // ★ 2026-07-22 新增：公休/營業中查詢與切換
-    let currentStoreIsOpen = true;
-    async function fetchStoreStatus() {
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getStoreStatus`);
-            const data = await resp.json();
-            if (data.status === 'success') {
-                currentStoreIsOpen = data.isOpen;
-                renderStoreStatus();
-            }
-        } catch (err) {
-            console.warn('查詢公休狀態失敗：', err.message);
-        }
-    }
-
-    function renderStoreStatus() {
-        const label = document.getElementById('storeStatusLabel');
-        const btn = document.getElementById('storeStatusToggleBtn');
-        if (!label || !btn) return;
-        if (currentStoreIsOpen) {
-            label.textContent = '🟢 目前：營業中';
-            btn.textContent = '設為公休';
-            btn.style.background = '#e74c3c';
-        } else {
-            label.textContent = '🔴 目前：公休中（客人無法送出訂單）';
-            btn.textContent = '恢復營業';
-            btn.style.background = '#27ae60';
-        }
-    }
-
-    async function toggleStoreStatus() {
-        const nextIsOpen = !currentStoreIsOpen;
-        const confirmMsg = nextIsOpen
-            ? '確定要恢復營業嗎？客人之後就能正常送出訂單。'
-            : '確定要設為公休嗎？設定後客人會看到公休提示，沒辦法送出新訂單。';
-        if (!(await customConfirm(confirmMsg))) return;
-        try {
-            const url = `${WEB_APP_URL}?action=setStoreStatus&password=${encodeURIComponent(adminPassword)}&isOpen=${nextIsOpen}&operator=${encodeURIComponent(INJECTED_OPERATOR)}`;
-            const resp = await fetch(url);
-            const data = await resp.json();
-            if (data.status === 'success') {
-                currentStoreIsOpen = data.isOpen;
-                renderStoreStatus();
-                showNotice(nextIsOpen ? '✅ 已恢復營業' : '✅ 已設為公休', 'ok');
-            } else {
-                showNotice('❌ ' + data.message, 'err');
-            }
-        } catch (err) {
-            showNotice('設定失敗：' + err.message, 'err');
-        }
-    }
-
     // ★ 頂層切換：訂單管理／儲值管理
     function setView(view) {
         currentView = view;
         document.getElementById('viewTabOrders').classList.toggle('active', view === 'orders');
         document.getElementById('viewTabTopup').classList.toggle('active', view === 'topup');
         document.getElementById('viewTabScreenshots').classList.toggle('active', view === 'screenshots');
-        document.getElementById('viewTabReport').classList.toggle('active', view === 'report');
-        document.getElementById('viewTabShift').classList.toggle('active', view === 'shift');
-        document.getElementById('viewTabSettings').classList.toggle('active', view === 'settings');
         document.getElementById('ordersView').style.display = view === 'orders' ? 'block' : 'none';
         document.getElementById('topupView').style.display = view === 'topup' ? 'block' : 'none';
         document.getElementById('screenshotsView').style.display = view === 'screenshots' ? 'block' : 'none';
-        document.getElementById('reportView').style.display = view === 'report' ? 'block' : 'none';
-        document.getElementById('shiftView').style.display = view === 'shift' ? 'block' : 'none';
-        document.getElementById('settingsView').style.display = view === 'settings' ? 'block' : 'none';
         document.getElementById('pageTitle').textContent =
-            view === 'orders' ? '📋 訂單看板' : (view === 'topup' ? '💰 儲值管理' : (view === 'screenshots' ? '💳 付款回報' : (view === 'report' ? '📊 營業報表' : (view === 'shift' ? '👥 班務' : '⚙️ 系統設定'))));
-        if (view === 'report') {
-            if (!document.getElementById('reportSummaryDate').value) {
-                document.getElementById('reportSummaryDate').valueAsDate = new Date();
-            }
-            loadSalesSummary();
-        } else if (view === 'shift') {
-            loadClockRecords();
-            loadShiftNotes();
-        } else if (view === 'settings') {
-            loadFeatureToggles();
-            loadDeviceRestrictionStatus();
-            loadClosureSchedule();
-            loadSystemHealth();
-            loadRefundRecords();
-            loadRepeatCustomerRate();
-            loadSalesHeatmap();
-            loadCancelReasonStats();
-            if (!document.getElementById('exportFromDate').value) {
-                const today = new Date();
-                const weekAgo = new Date(today);
-                weekAgo.setDate(weekAgo.getDate() - 6);
-                document.getElementById('exportFromDate').valueAsDate = weekAgo;
-                document.getElementById('exportToDate').valueAsDate = today;
-            }
-        } else {
-            loadCurrentView();
-        }
-    }
-
-    // ★ 2026-07-22 新增：載入簡易營業報表
-    async function loadSalesSummary() {
-        const dateInput = document.getElementById('reportSummaryDate');
-        const dateStr = dateInput.value || '';
-        const loadingEl = document.getElementById('reportLoadingArea');
-        const contentEl = document.getElementById('reportSummaryContent');
-        loadingEl.style.display = 'block';
-        contentEl.innerHTML = '';
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getSalesSummary&password=${encodeURIComponent(adminPassword)}&date=${encodeURIComponent(dateStr)}`);
-            const data = await resp.json();
-            if (data.status !== 'success') {
-                contentEl.innerHTML = `<div class="empty-state">${escapeHtml(data.message)}</div>`;
-                return;
-            }
-            const rankingHtml = data.itemRanking.length === 0
-                ? `<div class="hint">這天還沒有任何品項銷售紀錄</div>`
-                : `<table style="width:100%;border-collapse:collapse;">
-                    <thead><tr style="border-bottom:2px solid var(--border);">
-                        <th style="text-align:left;padding:8px 6px;font-size:13px;">品項</th>
-                        <th style="text-align:right;padding:8px 6px;font-size:13px;">銷售數量</th>
-                    </tr></thead>
-                    <tbody>${data.itemRanking.map((it, idx) => `
-                        <tr style="border-bottom:1px solid var(--border);">
-                            <td style="padding:8px 6px;font-size:14px;">${idx < 3 ? ['🥇','🥈','🥉'][idx] : ''} ${escapeHtml(it.name)}</td>
-                            <td style="padding:8px 6px;font-size:14px;text-align:right;font-weight:700;">${it.quantity}</td>
-                        </tr>`).join('')}
-                    </tbody>
-                </table>`;
-            contentEl.innerHTML = `
-                <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
-                    <div style="flex:1;min-width:140px;background:#eef2ff;border-radius:12px;padding:16px;text-align:center;">
-                        <div style="font-size:12px;color:var(--gray);margin-bottom:4px;">訂單數</div>
-                        <div style="font-size:26px;font-weight:900;color:var(--primary);">${data.orderCount}</div>
-                    </div>
-                    <div style="flex:1;min-width:140px;background:#f0fdf4;border-radius:12px;padding:16px;text-align:center;">
-                        <div style="font-size:12px;color:var(--gray);margin-bottom:4px;">總營收</div>
-                        <div style="font-size:26px;font-weight:900;color:#16a34a;">$${data.totalRevenue}</div>
-                    </div>
-                </div>
-                <div class="section-label" style="margin-bottom:8px;">🏆 熱銷品項排行（前10名）</div>
-                ${rankingHtml}
-                <div class="hint" style="margin-top:14px;">💡 已取消的訂單不計入統計；統計基準是「下單時間」，不是取餐時間</div>
-            `;
-        } catch (err) {
-            contentEl.innerHTML = `<div class="empty-state">讀取失敗：${escapeHtml(err.message)}</div>`;
-        } finally {
-            loadingEl.style.display = 'none';
-        }
-    }
-
-    // ★ 2026-07-22 新增：功能開關設定
-    const FEATURE_LABELS = {
-        repeatOrder: '客人「再訂一次」按鈕',
-        lineNotifyNewOrder: 'LINE推播新訂單提醒（需要另外設定LINE Messaging API金鑰才會真的送出，沒設定金鑰開了也不會出錯，只是不會有效果）',
-        customerNote: '熟客標記/備註',
-        scheduledClosure: '排程公休（下方可以設定）',
-        autoDelistOnStockout: '進貨標記缺貨時，自動下架同名的菜單品項',
-        itemProfitMargin: '菜單編輯顯示每項毛利率',
-        supplierPriceCompare: '供應商比價（每日進貨分頁裡）',
-        refundRecord: '正式退款/補償紀錄（下方可以登記）',
-        exportOrdersCsv: '訂單匯出成CSV（下方可以匯出）',
-        systemHealthDashboard: '系統健康度儀表板（本頁最上面）',
-        customerRating: '客人評分/意見回饋（完成訂單後可以打星星評分）',
-        busyTimeNotice: '忙碌時段提示（給客人看，待處理訂單多的時候提醒）',
-        pickupNotifyCustomer: '取餐完成主動LINE通知客人（需要另外設定LINE Messaging API金鑰才會真的送出）',
-        soldOutMessage: '限量品項售完時顯示「明天再來」提示',
-        closureCountdown: '公休倒數提示（給客人看，快公休前提前通知）',
-        pickupTimeSort: '出餐順序建議（訂單看板可依取餐時間排序）',
-        prepList: '備料清單自動產生',
-        kitchenDisplayMode: '廚房專用大螢幕模式',
-        orderEditLock: '多人同時處理訂單的狀態鎖定（避免互相蓋掉對方的操作）',
-        prepTimeStats: '出餐時間統計（健康度儀表板裡）',
-        birthdayDiscount: '生日優惠（客人可在「我的訂單」設定生日）',
-        referralReward: '推薦好友獎勵（客人可分享專屬連結）',
-        firstOrderDiscount: '首次消費折扣（自動判斷是否為第一筆訂單）',
-        thresholdGift: '滿額贈品（既有促銷系統的功能，這裡只是開關）',
-        timeLimitedDeal: '限時搶購（促銷規則可設定時段限制，目前需請開發者協助設定）',
-        salesHeatmap: '星期幾/時段銷售熱力圖（本頁下方）',
-        repeatCustomerRate: '回購率追蹤（本頁下方）',
-        cancelReasonStats: '客人取消訂單原因統計',
-        memberTier: '簡易會員等級/累積消費徽章（客人可在「我的訂單」查看）',
-        rememberPickupTime: '客人常用取餐時段記憶（自動預填點餐表單）',
-        staffPermissions: '員工帳號分權限（介面層區分，非硬性安全防護）',
-        shiftHandoverNotes: '交接班記事本（班務分頁）',
-        staffClockIn: '員工出勤打卡（班務分頁）',
-        menuPresets: '菜單預設集（菜單編輯裡可存/套用）'
-    };
-    let currentToggles = {};
-    // ★ 2026-07-22 新增：裝置存取限制開關（Cloudflare層級的門禁，不是
-    // Code.gs的功能開關，走獨立的API路徑，不透過WEB_APP_URL代理）
-    async function loadDeviceRestrictionStatus() {
-        const statusEl = document.getElementById('deviceRestrictionStatus');
-        try {
-            const resp = await fetch('/api/device-restriction');
-            const data = await resp.json();
-            if (data.status === 'success') {
-                renderDeviceRestrictionToggle(data.enabled);
-            } else {
-                statusEl.textContent = '讀取失敗';
-            }
-        } catch (err) {
-            statusEl.textContent = '讀取失敗：' + err.message;
-        }
-    }
-    function renderDeviceRestrictionToggle(enabled) {
-        document.getElementById('deviceRestrictionStatus').textContent = enabled ? '🔒 已開啟（只有手機LINE能開）' : '🔓 已關閉（電腦、一般瀏覽器都能開）';
-        document.getElementById('deviceRestrictionToggle').checked = enabled;
-        document.getElementById('deviceRestrictionSlider').style.background = enabled ? 'var(--success)' : '#cbd5e1';
-        document.getElementById('deviceRestrictionKnob').style.left = enabled ? '23px' : '3px';
-    }
-    async function toggleDeviceRestriction(enabled) {
-        try {
-            const resp = await fetch(`/api/device-restriction?password=${encodeURIComponent(adminPassword)}&enabled=${enabled}`, { method: 'POST' });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                renderDeviceRestrictionToggle(data.enabled);
-                showNotice(enabled ? '✅ 已開啟裝置限制' : '✅ 已關閉裝置限制', 'ok');
-            } else {
-                showNotice('❌ ' + data.message, 'err');
-                loadDeviceRestrictionStatus(); // 失敗要復原畫面上的開關狀態
-            }
-        } catch (err) {
-            showNotice('設定失敗：' + err.message, 'err');
-            loadDeviceRestrictionStatus();
-        }
-    }
-
-    async function loadFeatureToggles() {
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getFeatureToggles&password=${encodeURIComponent(adminPassword)}`);
-            const data = await resp.json();
-            if (data.status === 'success') {
-                currentToggles = data.toggles || {};
-                renderFeatureToggles();
-            }
-        } catch (err) {
-            showNotice('讀取功能開關失敗：' + err.message, 'err');
-        }
-    }
-    function renderFeatureToggles() {
-        const list = document.getElementById('featureTogglesList');
-        list.innerHTML = Object.keys(FEATURE_LABELS).map(key => {
-            const isOn = currentToggles[key] !== false;
-            return `
-            <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;padding:12px 14px;border-radius:10px;margin-bottom:8px;">
-                <span style="font-size:13px;flex:1;">${FEATURE_LABELS[key]}</span>
-                <label class="toggle-switch" style="position:relative;width:44px;height:24px;flex-shrink:0;margin-left:10px;">
-                    <input type="checkbox" ${isOn ? 'checked' : ''} onchange="toggleFeature('${key}', this.checked)" style="opacity:0;width:0;height:0;">
-                    <span style="position:absolute;inset:0;background:${isOn ? 'var(--success)' : '#cbd5e1'};border-radius:24px;transition:.2s;"></span>
-                    <span style="position:absolute;width:18px;height:18px;left:${isOn ? '23px' : '3px'};top:3px;background:#fff;border-radius:50%;transition:.2s;"></span>
-                </label>
-            </div>`;
-        }).join('');
-    }
-    async function toggleFeature(key, value) {
-        currentToggles[key] = value;
-        try {
-            const resp = await fetch(WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'setFeatureToggles', password: adminPassword, operator: INJECTED_OPERATOR, toggles: { [key]: value } })
-            });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                showNotice(value ? '✅ 已開啟' : '已關閉', 'ok');
-            } else {
-                showNotice('❌ ' + data.message, 'err');
-                renderFeatureToggles(); // 失敗要復原畫面上的開關狀態
-            }
-        } catch (err) {
-            showNotice('設定失敗：' + err.message, 'err');
-        }
-    }
-
-    // ★ 2026-07-22 新增：排程公休設定
-    const WEEKDAY_LABELS = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
-    let closureWeeklyDays = [];
-    let closureRanges = [];
-    async function loadClosureSchedule() {
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getClosureSchedule&password=${encodeURIComponent(adminPassword)}`);
-            const data = await resp.json();
-            if (data.status === 'success') {
-                closureWeeklyDays = data.weeklyClosedDays || [];
-                closureRanges = data.dateRanges || [];
-                renderWeeklyClosedDays();
-                renderClosureRanges();
-            }
-        } catch (err) {
-            showNotice('讀取排程公休設定失敗：' + err.message, 'err');
-        }
-    }
-    function renderWeeklyClosedDays() {
-        const list = document.getElementById('weeklyClosedDaysList');
-        list.innerHTML = WEEKDAY_LABELS.map((label, idx) => {
-            const isOn = closureWeeklyDays.indexOf(idx) !== -1;
-            return `<button onclick="toggleWeeklyClosedDay(${idx})" style="padding:8px 14px;border-radius:20px;border:1.5px solid ${isOn ? 'var(--danger)' : 'var(--border)'};background:${isOn ? '#fee2e2' : '#fff'};color:${isOn ? 'var(--danger)' : 'var(--gray)'};font-weight:700;font-size:13px;cursor:pointer;">${label}</button>`;
-        }).join('');
-    }
-    function toggleWeeklyClosedDay(idx) {
-        const pos = closureWeeklyDays.indexOf(idx);
-        if (pos === -1) closureWeeklyDays.push(idx); else closureWeeklyDays.splice(pos, 1);
-        renderWeeklyClosedDays();
-    }
-    function renderClosureRanges() {
-        const list = document.getElementById('closureRangesList');
-        if (closureRanges.length === 0) {
-            list.innerHTML = `<div class="hint">目前沒有預先排定的公休區間</div>`;
-            return;
-        }
-        list.innerHTML = closureRanges.map((r, idx) => `
-            <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
-                <input type="date" value="${r.from || ''}" onchange="closureRanges[${idx}].from=this.value" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;">
-                <span style="color:var(--gray);">～</span>
-                <input type="date" value="${r.to || ''}" onchange="closureRanges[${idx}].to=this.value" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;">
-                <input type="text" value="${escapeHtml(r.message || '')}" placeholder="公休原因（選填）" oninput="closureRanges[${idx}].message=this.value" style="flex:1;min-width:100px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;">
-                <button onclick="removeClosureRange(${idx})" style="border:none;background:#fee2e2;color:var(--danger);width:28px;height:28px;border-radius:6px;font-weight:900;cursor:pointer;">✕</button>
-            </div>`).join('');
-    }
-    function addClosureRange() {
-        closureRanges.push({ from: '', to: '', message: '' });
-        renderClosureRanges();
-    }
-    function removeClosureRange(idx) {
-        closureRanges.splice(idx, 1);
-        renderClosureRanges();
-    }
-    async function saveClosureSchedule() {
-        try {
-            const resp = await fetch(WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'setClosureSchedule', password: adminPassword, operator: INJECTED_OPERATOR, weeklyClosedDays: closureWeeklyDays, dateRanges: closureRanges })
-            });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                showNotice('✅ 排程公休設定已儲存', 'ok');
-            } else {
-                showNotice('❌ ' + data.message, 'err');
-            }
-        } catch (err) {
-            showNotice('儲存失敗：' + err.message, 'err');
-        }
-    }
-
-    // ★ 2026-07-22 新增：系統健康度儀表板
-    async function loadSystemHealth() {
-        const el = document.getElementById('healthDashboard');
-        el.innerHTML = '<div class="loading">載入中...</div>';
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getSystemHealth&password=${encodeURIComponent(adminPassword)}`);
-            const data = await resp.json();
-            if (data.status !== 'success') { el.innerHTML = `<div class="empty-state">${escapeHtml(data.message)}</div>`; return; }
-            const h = data.health;
-            const backupOk = h.backupTriggerActive && h.lastBackupDaysAgo !== null && h.lastBackupDaysAgo <= 2;
-            const cards = [
-                { label: '每日自動備份', value: h.backupTriggerActive ? '✅ 已設定' : '❌ 未設定', color: h.backupTriggerActive ? '#16a34a' : '#dc2626' },
-                { label: '最近一次備份', value: h.lastBackupTime ? h.lastBackupTime + (h.lastBackupDaysAgo > 0 ? `（${h.lastBackupDaysAgo}天前）` : '（今天）') : '尚無備份紀錄', color: backupOk ? '#16a34a' : '#d97706' },
-                { label: '目前營業狀態', value: h.storeIsOpen ? '🟢 營業中' : '🔴 公休中', color: h.storeIsOpen ? '#16a34a' : '#dc2626' },
-                { label: '今日訂單數', value: h.todayOrderCount !== null ? h.todayOrderCount + ' 筆' : '讀取失敗', color: '#1a3a5c' },
-                { label: '超過2小時未處理的未匯款訂單', value: h.stuckUnpaidCount !== null ? h.stuckUnpaidCount + ' 筆' : '讀取失敗', color: h.stuckUnpaidCount > 0 ? '#dc2626' : '#16a34a' },
-                { label: '今日平均出餐時間', value: h.avgPrepMinutes !== null && h.avgPrepMinutes !== undefined ? h.avgPrepMinutes + ' 分鐘（' + h.completedTodayCount + '筆已完成）' : '今天還沒有完成的訂單', color: '#1a3a5c' }
-            ];
-            el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
-                ${cards.map(c => `
-                    <div style="background:#fff;border-radius:10px;padding:12px;">
-                        <div style="font-size:11px;color:var(--gray);margin-bottom:4px;">${c.label}</div>
-                        <div style="font-size:15px;font-weight:900;color:${c.color};">${c.value}</div>
-                    </div>`).join('')}
-            </div>
-            <div style="font-size:11px;color:var(--gray);margin-top:8px;">程式版本：${escapeHtml(h.scriptVersion)}｜檢查時間：${escapeHtml(h.checkedAt)}</div>`;
-        } catch (err) {
-            el.innerHTML = `<div class="empty-state">讀取失敗：${escapeHtml(err.message)}</div>`;
-        }
-    }
-
-    // ★ 2026-07-22 新增：退款/補償紀錄
-    async function loadRefundRecords() {
-        const el = document.getElementById('refundRecordsList');
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getRefundRecords&password=${encodeURIComponent(adminPassword)}`);
-            const data = await resp.json();
-            if (data.status !== 'success') return;
-            const records = (data.records || []).slice(0, 20); // 只顯示最近20筆，太多會很長
-            if (records.length === 0) { el.innerHTML = '<div class="hint">目前沒有退款紀錄</div>'; return; }
-            el.innerHTML = `<div style="font-weight:700;font-size:12px;color:var(--gray);margin-bottom:6px;">最近的退款紀錄</div>` +
-                records.map(r => `
-                    <div style="padding:8px 0;border-top:1px solid var(--border);font-size:12px;">
-                        <b>${escapeHtml(r.orderNumber)}</b>　-$${r.amount}　<span style="color:var(--gray);">${escapeHtml(r.time)}</span><br>
-                        <span style="color:#475569;">${escapeHtml(r.reason)}</span>
-                    </div>`).join('');
-        } catch (err) {
-            console.warn('讀取退款紀錄失敗：', err.message);
-        }
-    }
-    async function addRefundRecord() {
-        const orderNumber = document.getElementById('refundOrderNumber').value.trim();
-        const amount = Number(document.getElementById('refundAmount').value) || 0;
-        const reason = document.getElementById('refundReason').value.trim();
-        if (!orderNumber || amount <= 0 || !reason) {
-            showNotice('請填寫訂單編號、金額（大於0）、原因', 'err');
-            return;
-        }
-        try {
-            const resp = await fetch(WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'addRefundRecord', password: adminPassword, operator: INJECTED_OPERATOR, orderNumber, amount, reason })
-            });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                showNotice('✅ 已登記退款', 'ok');
-                document.getElementById('refundOrderNumber').value = '';
-                document.getElementById('refundAmount').value = '';
-                document.getElementById('refundReason').value = '';
-                loadRefundRecords();
-            } else {
-                showNotice('❌ ' + data.message, 'err');
-            }
-        } catch (err) {
-            showNotice('登記失敗：' + err.message, 'err');
-        }
-    }
-
-    // ★ 2026-07-22 新增：訂單匯出成CSV
-    async function exportOrdersCsv() {
-        const from = document.getElementById('exportFromDate').value;
-        const to = document.getElementById('exportToDate').value;
-        if (!from || !to) { showNotice('請選擇匯出區間', 'err'); return; }
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=exportOrdersCsv&password=${encodeURIComponent(adminPassword)}&from=${from}&to=${to}`);
-            const data = await resp.json();
-            if (data.status !== 'success') { showNotice('❌ ' + data.message, 'err'); return; }
-            if (!data.csv || data.rowCount === 0) { showNotice('這段期間沒有訂單資料', 'err'); return; }
-            // ★ 加上UTF-8 BOM，避免Excel打開中文變亂碼
-            const blob = new Blob(['\ufeff' + data.csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `訂單匯出_${from}_${to}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showNotice(`✅ 已匯出 ${data.rowCount} 筆訂單`, 'ok');
-        } catch (err) {
-            showNotice('匯出失敗：' + err.message, 'err');
-        }
-    }
-
-    // ★ 2026-07-22 新增：回購率
-    async function loadRepeatCustomerRate() {
-        const el = document.getElementById('repeatRateDisplay');
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getRepeatCustomerRate&password=${encodeURIComponent(adminPassword)}`);
-            const data = await resp.json();
-            if (data.status === 'success') {
-                el.textContent = `${data.repeatRate}%（${data.repeatCustomers}/${data.totalCustomers}人）`;
-            } else {
-                el.textContent = '讀取失敗';
-            }
-        } catch (err) {
-            el.textContent = '讀取失敗';
-        }
-    }
-
-    // ★ 2026-07-22 新增：星期幾/時段銷售熱力圖
-    async function loadSalesHeatmap() {
-        const el = document.getElementById('heatmapGrid');
-        el.innerHTML = '<div class="loading">載入中...</div>';
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getSalesHeatmap&password=${encodeURIComponent(adminPassword)}`);
-            const data = await resp.json();
-            if (data.status !== 'success') { el.innerHTML = `<div class="hint">${escapeHtml(data.message)}</div>`; return; }
-            const grid = data.grid;
-            const weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
-            const maxVal = Math.max(1, ...grid.flat());
-            let html = '<table style="border-collapse:collapse;font-size:11px;"><thead><tr><th></th>';
-            for (let h = 0; h < 24; h++) html += `<th style="padding:2px;font-weight:400;color:var(--gray);">${h}</th>`;
-            html += '</tr></thead><tbody>';
-            for (let d = 0; d < 7; d++) {
-                html += `<tr><td style="padding:2px 6px;font-weight:700;">${weekdayLabels[d]}</td>`;
-                for (let h = 0; h < 24; h++) {
-                    const val = grid[d][h];
-                    const intensity = val / maxVal;
-                    const bg = val === 0 ? '#f1f5f9' : `rgba(79,70,229,${0.15 + intensity * 0.75})`;
-                    html += `<td title="${weekdayLabels[d]} ${h}點：${val}筆" style="width:20px;height:20px;background:${bg};text-align:center;color:${intensity > 0.5 ? '#fff' : '#334155'};">${val || ''}</td>`;
-                }
-                html += '</tr>';
-            }
-            html += '</tbody></table>';
-            el.innerHTML = html;
-        } catch (err) {
-            el.innerHTML = `<div class="hint">讀取失敗：${escapeHtml(err.message)}</div>`;
-        }
-    }
-
-    // ★ 2026-07-22 新增：取消原因統計
-    async function loadCancelReasonStats() {
-        const el = document.getElementById('cancelReasonStatsDisplay');
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getCancelReasonStats&password=${encodeURIComponent(adminPassword)}`);
-            const data = await resp.json();
-            if (data.status !== 'success') { el.innerHTML = `<div class="hint">${escapeHtml(data.message)}</div>`; return; }
-            const stats = data.stats || [];
-            if (stats.length === 0) { el.innerHTML = '<div class="hint">目前沒有取消原因紀錄</div>'; return; }
-            el.innerHTML = stats.map(s => `
-                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
-                    <span>${escapeHtml(s.reason)}</span>
-                    <span style="font-weight:700;">${s.count} 次</span>
-                </div>`).join('');
-        } catch (err) {
-            el.innerHTML = `<div class="hint">讀取失敗：${escapeHtml(err.message)}</div>`;
-        }
-    }
-
-    // ★ 2026-07-22 新增：員工打卡
-    async function clockInOut(type) {
-        try {
-            const resp = await fetch(WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'clockInOut', password: adminPassword, operator: INJECTED_OPERATOR, type })
-            });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                showNotice('✅ ' + data.message, 'ok');
-                loadClockRecords();
-            } else {
-                showNotice('❌ ' + data.message, 'err');
-            }
-        } catch (err) {
-            showNotice('打卡失敗：' + err.message, 'err');
-        }
-    }
-    async function loadClockRecords() {
-        const el = document.getElementById('clockRecordsList');
-        el.innerHTML = '<div class="loading">載入中...</div>';
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getClockRecords&password=${encodeURIComponent(adminPassword)}`);
-            const data = await resp.json();
-            if (data.status !== 'success') { el.innerHTML = `<div class="hint">${escapeHtml(data.message)}</div>`; return; }
-            const records = (data.records || []).slice(0, 15);
-            if (records.length === 0) { el.innerHTML = '<div class="hint">目前沒有打卡紀錄</div>'; return; }
-            el.innerHTML = `<div style="font-weight:700;font-size:12px;color:var(--gray);margin-bottom:6px;">最近的打卡紀錄</div>` +
-                records.map(r => `
-                    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
-                        <span>${escapeHtml(r.staff)}　<span style="color:${r.type === '上班' ? 'var(--success)' : 'var(--danger)'};font-weight:700;">${r.type}</span></span>
-                        <span style="color:var(--gray);">${escapeHtml(r.time)}</span>
-                    </div>`).join('');
-        } catch (err) {
-            el.innerHTML = `<div class="hint">讀取失敗：${escapeHtml(err.message)}</div>`;
-        }
-    }
-
-    // ★ 2026-07-22 新增：交接班記事本
-    async function loadShiftNotes() {
-        const el = document.getElementById('shiftNotesList');
-        el.innerHTML = '<div class="loading">載入中...</div>';
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getShiftNotes&password=${encodeURIComponent(adminPassword)}`);
-            const data = await resp.json();
-            if (data.status !== 'success') { el.innerHTML = `<div class="hint">${escapeHtml(data.message)}</div>`; return; }
-            const notes = data.notes || [];
-            if (notes.length === 0) { el.innerHTML = '<div class="hint">目前沒有交接班記事</div>'; return; }
-            el.innerHTML = notes.map(n => `
-                <div style="padding:8px 0;border-top:1px solid var(--border);font-size:13px;">
-                    <div style="color:#334155;">${escapeHtml(n.note)}</div>
-                    <div style="color:var(--gray);font-size:11px;margin-top:2px;">${escapeHtml(n.author)}　${escapeHtml(n.time)}</div>
-                </div>`).join('');
-        } catch (err) {
-            el.innerHTML = `<div class="hint">讀取失敗：${escapeHtml(err.message)}</div>`;
-        }
-    }
-    async function addShiftNote() {
-        const input = document.getElementById('shiftNoteInput');
-        const note = input.value.trim();
-        if (!note) return;
-        try {
-            const resp = await fetch(WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'addShiftNote', password: adminPassword, operator: INJECTED_OPERATOR, note })
-            });
-            const data = await resp.json();
-            if (data.status === 'success') {
-                input.value = '';
-                loadShiftNotes();
-            } else {
-                showNotice('❌ ' + data.message, 'err');
-            }
-        } catch (err) {
-            showNotice('送出失敗：' + err.message, 'err');
-        }
+            view === 'orders' ? '📋 訂單看板' : (view === 'topup' ? '💰 儲值管理' : '💳 付款回報');
+        loadCurrentView();
     }
 
     function loadCurrentView(silent) {
@@ -1251,7 +470,7 @@
     // 確認沒問題才按這個。這步刻意不自動化，是防止有人不用真的付款、
     // 單靠畫面上看得到的取餐號/電話/金額就讓系統自動出餐的最後把關。
     async function confirmPaymentReport(rowNumber) {
-        if (!(await customConfirm('確定已經去銀行核對過、錢真的到帳了嗎？\n這個動作會把對應訂單標記為「已匯款」。'))) return;
+        if (!confirm('確定已經去銀行核對過、錢真的到帳了嗎？\n這個動作會把對應訂單標記為「已匯款」。')) return;
         try {
             const url = `${WEB_APP_URL}?action=confirmPaymentReport&password=${encodeURIComponent(adminPassword)}&rowNumber=${rowNumber}&operator=${encodeURIComponent(INJECTED_OPERATOR)}`;
             const resp = await fetch(url);
@@ -1489,7 +708,7 @@
     }
 
     async function confirmTopup(rowNumber) {
-        if (!(await customConfirm('確認已經核對過匯款截圖，要讓這筆儲值入帳嗎？'))) return;
+        if (!confirm('確認已經核對過匯款截圖，要讓這筆儲值入帳嗎？')) return;
         try {
             const url = `${WEB_APP_URL}?action=confirmTopupRequest&password=${encodeURIComponent(adminPassword)}&rowNumber=${rowNumber}&approve=true&operator=${encodeURIComponent(INJECTED_OPERATOR)}`;
             const resp = await fetch(url);
@@ -1505,21 +724,23 @@
         }
     }
 
-    async function rejectTopup(rowNumber) {
-        if (!(await customConfirm('確定要駁回這筆儲值申請嗎？（例如客人根本沒匯款、或截圖對不上）'))) return;
-        try {
-            const url = `${WEB_APP_URL}?action=confirmTopupRequest&password=${encodeURIComponent(adminPassword)}&rowNumber=${rowNumber}&approve=false&operator=${encodeURIComponent(INJECTED_OPERATOR)}`;
-            const resp = await fetch(url);
-            const data = await resp.json();
-            if (data.status === 'success') {
-                showNotice('已駁回這筆儲值申請', 'ok');
-                loadTopupRequests(true);
-            } else {
-                showNotice('❌ ' + data.message, 'err');
+    function rejectTopup(rowNumber) {
+        if (!confirm('確定要駁回這筆儲值申請嗎？（例如客人根本沒匯款、或截圖對不上）')) return;
+        (async () => {
+            try {
+                const url = `${WEB_APP_URL}?action=confirmTopupRequest&password=${encodeURIComponent(adminPassword)}&rowNumber=${rowNumber}&approve=false&operator=${encodeURIComponent(INJECTED_OPERATOR)}`;
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    showNotice('已駁回這筆儲值申請', 'ok');
+                    loadTopupRequests(true);
+                } else {
+                    showNotice('❌ ' + data.message, 'err');
+                }
+            } catch (err) {
+                showNotice('駁回失敗：' + err.message, 'err');
             }
-        } catch (err) {
-            showNotice('駁回失敗：' + err.message, 'err');
-        }
+        })();
     }
 
     // ────────────────────────────────────────────
@@ -1629,59 +850,6 @@
         document.getElementById('tableModalOverlay').classList.remove('show');
     }
 
-    // ★ 2026-07-22 新增：備料清單
-    async function openPrepListModal() {
-        const overlay = document.getElementById('prepListModalOverlay');
-        const body = document.getElementById('prepListModalBody');
-        overlay.classList.add('show');
-        body.innerHTML = '<div class="loading">載入中...</div>';
-        try {
-            const resp = await fetch(`${WEB_APP_URL}?action=getPrepList&password=${encodeURIComponent(adminPassword)}`);
-            const data = await resp.json();
-            if (data.status !== 'success') { body.innerHTML = `<p>${escapeHtml(data.message)}</p>`; return; }
-            const items = data.items || [];
-            if (items.length === 0) { body.innerHTML = '<p>目前沒有待處理的訂單，不用備料</p>'; return; }
-            body.innerHTML = `<p style="margin-bottom:10px;color:var(--gray);">目前共 ${data.orderCount} 筆待處理訂單，需要準備：</p>` +
-                items.map(it => `
-                    <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:16px;">
-                        <span>${escapeHtml(it.name)}</span>
-                        <span style="font-weight:900;">x ${it.quantity}</span>
-                    </div>`).join('');
-        } catch (err) {
-            body.innerHTML = `<p>讀取失敗：${escapeHtml(err.message)}</p>`;
-        }
-    }
-    function closePrepListModal() {
-        document.getElementById('prepListModalOverlay').classList.remove('show');
-    }
-
-    // ★ 2026-07-22 新增：廚房大螢幕模式——只顯示還在處理中的訂單，字級放大
-    let kitchenDisplayTimer = null;
-    function openKitchenDisplay() {
-        document.getElementById('kitchenDisplayOverlay').style.display = 'block';
-        renderKitchenDisplay();
-        if (kitchenDisplayTimer) clearInterval(kitchenDisplayTimer);
-        kitchenDisplayTimer = setInterval(() => { loadOrders(true).then(renderKitchenDisplay); }, 15000);
-    }
-    function closeKitchenDisplay() {
-        document.getElementById('kitchenDisplayOverlay').style.display = 'none';
-        if (kitchenDisplayTimer) { clearInterval(kitchenDisplayTimer); kitchenDisplayTimer = null; }
-    }
-    function renderKitchenDisplay() {
-        const grid = document.getElementById('kitchenDisplayGrid');
-        const pending = allOrders.filter(o => o.status === '已匯款' || o.status === '準備中');
-        if (pending.length === 0) {
-            grid.innerHTML = '<div style="color:#94a3b8;font-size:20px;grid-column:1/-1;text-align:center;padding:40px;">目前沒有待出餐的訂單 🎉</div>';
-            return;
-        }
-        grid.innerHTML = pending.map(o => `
-            <div style="background:#1e293b;border-radius:14px;padding:16px;border-left:6px solid ${o.status === '準備中' ? '#4f46e5' : '#d97706'};">
-                <div style="color:#fff;font-size:20px;font-weight:900;margin-bottom:6px;">🎫 ${o.takeNumber !== undefined && o.takeNumber !== null ? o.takeNumber : o.orderNumber}</div>
-                <div style="color:#cbd5e1;font-size:15px;line-height:1.6;">${escapeHtml(o.items)}</div>
-                <div style="color:#94a3b8;font-size:13px;margin-top:8px;">取餐：${escapeHtml(o.pickupTime)}</div>
-            </div>`).join('');
-    }
-
     function setFilter(filter) {
         currentFilter = filter;
         document.querySelectorAll('.filter-tab').forEach(btn => {
@@ -1732,18 +900,6 @@
             filtered = allOrders.filter(o => o.status !== '已完成' && o.status !== '已取消');
         } else {
             filtered = allOrders.filter(o => o.status === currentFilter);
-        }
-
-        // ★ 2026-07-22 新增：出餐順序建議——依取餐時間排序，取餐時間快到的
-        // 排最前面，提醒優先處理，不是單純依下單先後順序（下單早不代表
-        // 取餐時間就早，客人可能下單時就先選晚一點的時段）
-        const sortToggle = document.getElementById('sortByPickupTimeToggle');
-        if (sortToggle && sortToggle.checked) {
-            filtered = [...filtered].sort((a, b) => {
-                const aKey = `${a.pickupDate} ${a.pickupTime}`;
-                const bKey = `${b.pickupDate} ${b.pickupTime}`;
-                return aKey.localeCompare(bKey);
-            });
         }
 
         if (filtered.length === 0) {
@@ -1799,41 +955,22 @@
                     <span class="status-badge ${cls}">${escapeHtml(o.status)}</span>
                 </div>
                 <div class="order-info">
-                    👤 <b>${escapeHtml(o.customerName)}</b>　📞 <a href="tel:${escapeHtml(o.customerPhone)}" style="color:inherit;text-decoration:underline;">${escapeHtml(o.customerPhone)}</a><br>
+                    👤 <b>${escapeHtml(o.customerName)}</b>　📞 ${escapeHtml(o.customerPhone)}<br>
                     🕐 取餐：${escapeHtml(o.pickupDate)} ${escapeHtml(o.pickupTime)}
                 </div>
                 <div class="order-items">${escapeHtml(o.items)}</div>
                 <div class="order-total">$${o.total}</div>
                 ${o.adminNote ? `<div class="admin-note">⚠️ ${escapeHtml(o.adminNote)}</div>` : ''}
                 ${o.orderNotes ? `<div class="admin-note" style="color:#475569;background:#f1f5f9;">📝 ${escapeHtml(o.orderNotes)}</div>` : ''}
-                <!-- ★ 2026-07-22 新增：熟客備註，用電話號碼查對照表，不用另外呼叫API -->
-                <div style="margin:8px 0;padding:8px 10px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;">
-                    <div style="font-size:11px;color:#92400e;font-weight:700;margin-bottom:4px;">📌 顧客備註</div>
-                    <div style="display:flex;gap:6px;">
-                        <input type="text" id="custNote_${o.rowNumber}" value="${escapeHtml((window.customerNotes || {})[o.customerPhone] || '')}" placeholder="例如：不吃香菜、常點雞排" style="flex:1;padding:6px 8px;font-size:12px;border:1px solid #fde68a;border-radius:6px;">
-                        <button onclick="saveCustomerNote('${escapeHtml(o.customerPhone)}', ${o.rowNumber})" style="padding:6px 12px;font-size:12px;border:none;border-radius:6px;background:#92400e;color:#fff;font-weight:700;cursor:pointer;">存</button>
-                    </div>
-                </div>
                 <div class="order-actions">
                     <button class="action-btn btn-unpaid ${o.status==='未匯款'?'active':''} ${o.status==='已完成'||o.status==='已取消'?'disabled':''}" onclick="updateStatus(${o.rowNumber},'未匯款')">未匯款</button>
                     <button class="action-btn btn-paid ${o.status==='已匯款'?'active':''} ${o.status==='已完成'||o.status==='已取消'?'disabled':''}" onclick="updateStatus(${o.rowNumber},'已匯款')">已匯款</button>
                     <button class="action-btn btn-preparing ${o.status==='準備中'?'active':''} ${o.status==='已完成'||o.status==='已取消'?'disabled':''}" onclick="updateStatus(${o.rowNumber},'準備中')">準備中</button>
                     <button class="action-btn btn-done ${o.status==='已完成'?'active':''}" onclick="updateStatus(${o.rowNumber},'已完成')">已完成</button>
                     ${o.status !== '已完成' && o.status !== '已取消' ? `<button class="action-btn btn-cancel" onclick="cancelOrder(${o.rowNumber})">✕ 取消</button>` : ''}
-                    <button class="action-btn" style="background:#fef3c7;color:#92400e;" onclick="jumpToRefundForm('${escapeHtml(o.orderNumber)}')">💸 退款</button>
                 </div>
             </div>`;
         }).join('');
-    }
-
-    // ★ 2026-07-22 新增：從訂單卡片快速跳到「系統設定」分頁的退款登記表單，
-    // 順便把訂單編號帶進去，不用自己再輸入一次
-    function jumpToRefundForm(orderNumber) {
-        setView('settings');
-        setTimeout(() => {
-            const input = document.getElementById('refundOrderNumber');
-            if (input) { input.value = orderNumber; input.focus(); }
-        }, 100);
     }
 
     // ★ 截圖放大檢視：點縮圖打開，點畫面任何地方關閉
@@ -1847,22 +984,12 @@
 
     async function updateStatus(rowNumber, status) {
         try {
-            // ★ 2026-07-22 新增：多人同時處理訂單的狀態鎖定。把「當下畫面上看到的
-            // 最後更新時間」一起送過去，後端會比對現在試算表上的是不是還是同一個
-            // 值，不一樣就代表被別人搶先改過了，這次不會真的送出去
-            const orderInList = allOrders.find(o => o.rowNumber === rowNumber);
-            const expectedUpdatedAt = orderInList ? orderInList.updatedAt : '';
-
-            let url = `${WEB_APP_URL}?action=updateOrderStatus&password=${encodeURIComponent(adminPassword)}&rowNumber=${rowNumber}&status=${encodeURIComponent(status)}&operator=${encodeURIComponent(INJECTED_OPERATOR)}&expectedUpdatedAt=${encodeURIComponent(expectedUpdatedAt)}`;
+            let url = `${WEB_APP_URL}?action=updateOrderStatus&password=${encodeURIComponent(adminPassword)}&rowNumber=${rowNumber}&status=${encodeURIComponent(status)}&operator=${encodeURIComponent(INJECTED_OPERATOR)}`;
             const resp = await fetch(url);
             const data = await resp.json();
             if (data.status === 'success') {
                 showNotice('✅ 已更新訂單狀態', 'ok');
                 loadOrders(true);
-            } else if (data.conflict) {
-                // ★ 版本衝突：跳出比較明顯的提示，並強制重新整理，讓畫面對齊最新狀態
-                alert('⚠️ ' + data.message);
-                loadOrders(false);
             } else {
                 showNotice('❌ ' + data.message, 'err');
             }
@@ -1871,8 +998,8 @@
         }
     }
 
-    async function cancelOrder(rowNumber) {
-        if (!(await customConfirm('確定要取消這筆訂單嗎？'))) return;
+    function cancelOrder(rowNumber) {
+        if (!confirm('確定要取消這筆訂單嗎？')) return;
         updateStatus(rowNumber, '已取消');
     }
 
@@ -1886,31 +1013,6 @@
         el.textContent = msg;
         el.className = `notice show ${type}`;
         setTimeout(() => el.classList.remove('show'), 4000);
-    }
-
-    // ★ 2026-07-22 新增：自訂的確認視窗，取代瀏覽器原生的 confirm()。
-    // 原因：原生 confirm() 這種瀏覽器彈窗，在某些情況下會讓畫面暫時脫離
-    // 全螢幕狀態，被我們自己做的「退出全螢幕就強制登出」機制誤判成
-    // 「使用者離開了」，導致操作到一半突然被踢回登入畫面、動作沒有真的
-    // 送出去。改用這種畫在網頁裡面的假視窗，不會有這個副作用。
-    // 用法：await customConfirm('訊息') 取代 confirm('訊息')，回傳true/false。
-    function customConfirm(message) {
-        return new Promise((resolve) => {
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px;';
-            overlay.innerHTML = `
-                <div style="background:#fff;border-radius:14px;padding:24px;max-width:340px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3);">
-                    <div style="font-size:15px;line-height:1.6;margin-bottom:20px;white-space:pre-wrap;">${escapeHtml(message)}</div>
-                    <div style="display:flex;gap:10px;justify-content:flex-end;">
-                        <button id="customConfirmCancel" style="padding:10px 18px;border:1px solid #ccc;background:#fff;border-radius:8px;cursor:pointer;font-weight:700;">取消</button>
-                        <button id="customConfirmOk" style="padding:10px 18px;border:none;background:#2c3e8c;color:#fff;border-radius:8px;cursor:pointer;font-weight:700;">確定</button>
-                    </div>
-                </div>`;
-            document.body.appendChild(overlay);
-            const cleanup = (result) => { overlay.remove(); resolve(result); };
-            overlay.querySelector('#customConfirmOk').onclick = () => cleanup(true);
-            overlay.querySelector('#customConfirmCancel').onclick = () => cleanup(false);
-        });
     }
 </script>
 </body>
