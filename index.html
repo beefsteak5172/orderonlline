@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- © ★店名★ https://cline-2u1.pages.dev 盜用必究 -->
+<!-- © 無名牛排 https://wumingsteak-order.anonymousbeefsteak.workers.dev 盜用必究 -->
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>★店名★ - 線上訂餐</title>
+    <title>無名牛排 - 線上訂餐</title>
     <!-- ★ 網域鎖：放在所有東西最前面，第一時間檢查。只允許自己的正式網域
          跟本機測試環境執行，複製整包程式碼貼到別的網址上會直接看到警示畫面。
          ★ 白名單特別留意：這份 index.html 除了部署在 Netlify，Code.gs 的 doGet
@@ -19,7 +19,7 @@
       (function() {
         var host = location.hostname;
         var allowed = (
-          host === 'cline4.anonymousbeefsteak.workers.dev' ||
+          host === 'wumingsteak-order.anonymousbeefsteak.workers.dev' ||
           host === 'localhost' ||
           host === '127.0.0.1' ||
           host === 'script.google.com' ||
@@ -604,8 +604,8 @@
             <button onclick="location.reload()" title="重新整理" style="background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.5);color:#fff;width:38px;height:38px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">🔄</button>
         </div>
 
-        <div style="font-size:64px;margin-bottom:18px;">🍗</div>
-        <h1 style="color:#fff;font-size:1.9em;font-weight:900;margin-bottom:8px;">★店名★</h1>
+        <div style="font-size:64px;margin-bottom:18px;">🥩</div>
+        <h1 style="color:#fff;font-size:1.9em;font-weight:900;margin-bottom:8px;">無名牛排</h1>
         <p style="color:rgba(255,255,255,.85);font-size:14px;margin-bottom:20px;">有點不同 SOMETHING Different・外帶自取</p>
 
         <!-- ★ 版本過舊提示：從訂餐系統header搬過來放這裡，讓客人在還沒進去點餐畫面前
@@ -619,7 +619,7 @@
         </button>
     </div>
 
-    <!-- ★ 促銷公告跑馬燈：內容完全由「★店名★_優惠設定.html」自行編輯，沒有啟用中的公告就不會顯示 -->
+    <!-- ★ 促銷公告跑馬燈：內容完全由「無名牛排_優惠設定.html」自行編輯，沒有啟用中的公告就不會顯示 -->
     <div id="marqueeBar" class="marquee-bar" style="display:none;">
         <span id="marqueeTrack" class="marquee-track"></span>
     </div>
@@ -631,7 +631,7 @@
                 <button onclick="closeLiffWindow()" title="關閉，退回LINE聊天室" style="background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.5);color:#fff;width:38px;height:38px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>
                 <button onclick="location.reload()" title="重新整理整個頁面" style="background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.5);color:#fff;width:38px;height:38px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">🔄</button>
             </div>
-            <h1>🍗 ★店名★</h1>
+            <h1>🥩 無名牛排</h1>
             <p>有點不同 SOMETHING Different • 外帶自取</p>
             <div style="margin-top:14px;display:flex;gap:6px;justify-content:center;position:relative;z-index:10;flex-wrap:wrap;">
                 <button onclick="openMyOrdersModal()" style="background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.5);color:#fff;padding:8px 12px;border-radius:20px;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;">📋 查詢訂單</button>
@@ -724,7 +724,7 @@
 
             <div id="topupTermsContent" onscroll="checkTopupTermsScrolled()" style="flex:1;overflow-y:auto;border:2px solid var(--border);border-radius:12px;padding:16px;font-size:13px;line-height:1.9;color:#334155;max-height:50vh;">
                 <p><strong>一、儲值餘額使用規則</strong></p>
-                <p>1. 儲值後之餘額僅限於本店（★店名★）線上點餐系統內使用，不得折換現金、不得轉讓予他人。</p>
+                <p>1. 儲值後之餘額僅限於本店（無名牛排）線上點餐系統內使用，不得折換現金、不得轉讓予他人。</p>
                 <p>2. 使用儲值餘額付款之訂單，不得與其他促銷優惠合併使用，系統將自動以餘額扣款為主。</p>
                 <p>3. 儲值申請送出後，須完成匯款並經店家確認收款，餘額才會正式入帳，請耐心等候店家確認。</p>
                 <p><strong>二、退款與異動</strong></p>
@@ -1003,7 +1003,7 @@
         </div>
     </div>
 
-    <!-- ★ 促銷公告彈出小視窗：一進頁面就顯示，內容由「★店名★_優惠設定.html」自行編輯 -->
+    <!-- ★ 促銷公告彈出小視窗：一進頁面就顯示，內容由「無名牛排_優惠設定.html」自行編輯 -->
     <div id="announcementModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9997;align-items:center;justify-content:center;padding:20px;">
         <div style="background:#fff;border-radius:20px;max-width:380px;width:100%;padding:26px 24px;box-shadow:0 20px 50px rgba(0,0,0,.25);text-align:center;">
             <div style="font-size:38px;margin-bottom:8px;">📢</div>
@@ -1031,7 +1031,7 @@
 
     <script>
         // 您的 Web App URL - 部署 Apps Script 後，將 /exec 網址貼在這裡
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwP1gHGLIMtHYsrGQnFE-vz3oQHM-ZmwEvtpnjEe7IJG63aRo93iUsAp7eBtsE_ne61/exec';
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw0u13ZHi5WxuxIYqLLtRMyJVtK8NsMBLT5fAjgF2itUg_Qq9byoiiYgcFSHJYB8iRk/exec'; // ✅ 已換成你提供的無名牛排測試部署網址
 
         // ★ 版本號：每次改完這個檔案，把數字往上加一。
         // 網頁最下方會小小顯示這個版本號，重新整理後看數字有沒有變，就知道有沒有真的更新成功。
@@ -1040,7 +1040,7 @@
         // ★ 簡易來源驗證用的共用密鑰：要跟後端 Code.gs 裡的 APP_SHARED_SECRET 一模一樣，
         // 送單時會附在網址上讓後端核對，兩邊沒對上訂單會被拒收。
         // 部署前務必把這裡跟 Code.gs 都改成同一組你自己的隨機字串（不要用預設值）。
-        const APP_TOKEN = '9d855a020376cc770519248ca8e90164ec7c3e7415393ed1';
+        const APP_TOKEN = 'ef71b23bf917ae40f22fa10233d86d1fd37b772597be350e'; // ⚠️ 要跟 Code.gs 的 APP_SHARED_SECRET 同一組（已同步更新）
         
         // ★ 營業時間設定：改這兩個數字就能調整取餐時間可選範圍
         const BUSINESS_OPEN_HOUR = 11;   // 開門時間（24小時制）
@@ -1059,14 +1059,26 @@
 
         // 備援菜單資料：若無法連線 Google Apps Script 讀取最新菜單時使用
         // ★ LIFF 設定：從 LINE Developers Console 申請到的 LIFF ID
-        const LIFF_ID = '2010768353-jAYaoa0W';
+        const LIFF_ID = '請填入無名牛排客人點餐用的LIFF_ID'; // ⚠️ 要在無名牛排專用的LINE Developers Channel底下新增LIFF App拿到的ID，不能沿用台雞店的
         window.lineUserId = '';
         window.lineDisplayName = '';
         window.lineIdToken = '';
 
         window.liffReady = false; // LIFF初始化是否已完成，分享功能要靠這個旗標判斷能不能用liff API
 
+        // ⚠️★ 暫時測試用開關：無名牛排的 LIFF_ID 還沒申請好，一般瀏覽器打開會
+        // 直接被導去 Google（liff.isInClient()判斷失敗）。網址後面加上
+        // ?preview=1 可以跳過整個 LIFF/LINE 檢查，用來先看菜單、UI、加入購物車
+        // 等畫面流程——但因為沒有真實 LINE 身份，送出訂單／查餘額／查我的訂單
+        // 這些一定要驗證身份的動作還是會失敗（後端會擋，這是正確行為，不是bug）。
+        // ★ 正式上線前一定要把這一段拿掉，不能讓客人繞過LINE驗證。
+        const PREVIEW_MODE = new URLSearchParams(window.location.search).get('preview') === '1';
+
         async function initLiff() {
+            if (PREVIEW_MODE) {
+                console.warn('[測試模式] 已跳過 LIFF/LINE 檢查，僅供預覽畫面用，訂單相關功能無法使用');
+                return;
+            }
             if (typeof liff === 'undefined') {
                 document.body.innerHTML = '<div style="height:100vh;display:flex;align-items:center;justify-content:center;background:#000;color:#fff;text-align:center;padding:20px;">連線失敗，請檢查網路後重新開啟。</div>';
                 return;
@@ -1088,9 +1100,9 @@
                         <div style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; padding:20px; text-align:center; font-family: sans-serif;">
                             <div style="font-size:60px; margin-bottom:20px;">🔒</div>
                             <h2 style="margin-bottom:12px; font-size:24px;">請透過 LINE 開啟</h2>
-                            <p style="opacity:0.9; font-size:15px; line-height:1.7; max-width:300px;">為了保護您的訂餐安全與儲值隱私，本系統僅限從「★店名★」官方帳號開啟。</p>
+                            <p style="opacity:0.9; font-size:15px; line-height:1.7; max-width:300px;">為了保護您的訂餐安全與儲值隱私，本系統僅限從「無名牛排」官方帳號開啟。</p>
                             <button onclick="liff.login()" style="margin-top:25px; padding:14px 32px; border:none; border-radius:12px; background:white; color:#764ba2; font-weight:900; font-size:16px; cursor:pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">立即登入驗證</button>
-                            <p style="margin-top:20px; font-size:12px; opacity:0.6;">★店名★系統保護中</p>
+                            <p style="margin-top:20px; font-size:12px; opacity:0.6;">無名牛排系統保護中</p>
                         </div>`;
                     return;
                 }
@@ -1110,9 +1122,9 @@
                     if (!friendship.friendFlag) {
                         document.body.innerHTML = `
                             <div style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; padding:20px; text-align:center; font-family: sans-serif;">
-                                <div style="font-size:60px; margin-bottom:20px;">🍗</div>
+                                <div style="font-size:60px; margin-bottom:20px;">🥩</div>
                                 <h2 style="margin-bottom:12px; font-size:24px;">請先加入好友</h2>
-                                <p style="opacity:0.9; font-size:15px; line-height:1.7; max-width:300px;">要先加「★店名★」官方帳號為好友，才能開始使用點餐系統喔！</p>
+                                <p style="opacity:0.9; font-size:15px; line-height:1.7; max-width:300px;">要先加「無名牛排」官方帳號為好友，才能開始使用點餐系統喔！</p>
                                 <button onclick="location.href='https://line.me/ti/p/@561zotgq'" style="margin-top:25px; padding:14px 32px; border:none; border-radius:12px; background:white; color:#764ba2; font-weight:900; font-size:16px; cursor:pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">加入好友</button>
                                 <button onclick="location.reload()" style="margin-top:14px; padding:10px 24px; border:1.5px solid rgba(255,255,255,.5); border-radius:12px; background:transparent; color:#fff; font-weight:700; font-size:14px; cursor:pointer;">已加好友，重新整理</button>
                             </div>`;
@@ -1255,7 +1267,7 @@
                 const prevStatus = window.myOrdersLastKnownStatus[o.orderNumber];
                 if (prevStatus !== undefined && prevStatus !== '已完成' && o.status === '已完成') {
                     try {
-                        new Notification('🍗 ★店名★', {
+                        new Notification('🥩 無名牛排', {
                             body: `您的訂單 ${o.orderNumber} 已經完成囉！歡迎前來取餐～`
                         });
                     } catch (e) {
@@ -1703,7 +1715,7 @@
         }
 
         // ★ 促銷公告（跑馬燈／小視窗）：純文字公告，跟上面算折扣的優惠規則是分開兩件事，
-        // 內容完全由「★店名★_優惠設定.html」自行編輯，這裡只負責顯示。
+        // 內容完全由「無名牛排_優惠設定.html」自行編輯，這裡只負責顯示。
         async function fetchAnnouncements() {
             if (!WEB_APP_URL || WEB_APP_URL.includes('請貼上')) return;
             try {
@@ -2632,7 +2644,7 @@
                 ? '✅ 已使用儲值餘額付清，訂單已成立，不用再匯款！'
                 : `如未繳費，請自「付款回報」填寫繳費資訊`;
             return [
-                '🍗 ★店名★',
+                '🥩 無名牛排',
                 d.takeNumber ? `取餐號：${d.takeNumber}` : '',
                 d.items || '',
                 `金額：$${d.total}`,
@@ -2680,7 +2692,7 @@
                 // 2. 再試瀏覽器原生分享（Safari/Chrome那種系統分享選單）
                 if (navigator.share) {
                     try {
-                        await navigator.share({ title: '★店名★ 訂單', text: text });
+                        await navigator.share({ title: '無名牛排 訂單', text: text });
                         markOrderAsShared('shareOrderBtn');
                         return;
                     } catch (err) {

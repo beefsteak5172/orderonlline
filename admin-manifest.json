@@ -1,6 +1,6 @@
 {
-  "name": "咱的台雞店・後台管理",
-  "short_name": "台雞店後台",
+  "name": "無名牛排・後台管理",
+  "short_name": "無名牛排後台",
   "start_url": "/admin",
   "scope": "/admin",
   "display": "standalone",
