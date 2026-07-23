@@ -1,4 +1,4 @@
-name = "cline4"
+name = "orderonlline"  # ★ 已改成跟 Cloudflare 專案一致，否則每次 build 都會出現 name mismatch 警告
 compatibility_date = "2025-01-01"
 main = "_worker.js"
 
@@ -14,21 +14,21 @@ not_found_handling = "single-page-application"
 # 沒有密碼也進不去任何資料（後台要密碼、客人點餐要 LINE 身份驗證），
 # 風險可以接受，換來的是不會再每次部署就打不開。
 [vars]
-GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwP1gHGLIMtHYsrGQnFE-vz3oQHM-ZmwEvtpnjEe7IJG63aRo93iUsAp7eBtsE_ne61/exec"
+GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw0u13ZHi5WxuxIYqLLtRMyJVtK8NsMBLT5fAjgF2itUg_Qq9byoiiYgcFSHJYB8iRk/exec"
 # ★ 2026-07-21 新增：限流改用已驗證的 LINE 身份時，Worker 要拿這個去跟
 # LINE 官方驗證 idToken 是不是核發給這個 LIFF 的。這不是機密資訊
 # （跟客人/後台LIFF頁面原始碼裡本來就看得到的Channel ID一樣，公開也沒關係），
 # 放在明文 [vars] 沒問題。
-LINE_CHANNEL_ID = "2010768353"
+LINE_CHANNEL_ID = "請填入無名牛排專用LINE官方帳號的LIFF_Channel_ID"  # ⚠️ 還沒填！要在LINE Developers另外建一個給無名牛排用的Channel，不能沿用台雞店的
 # ★ 2026-07-21 新增：後台改用 Windows kiosk 電腦時的例外通道金鑰，網址
 # 要帶 ?kioskKey=這組值 才能跳過手機/LINE檢查。這組值不能外流，外流等於
 # 任何電腦都能繞過裝置門禁直接進後台密碼畫面（密碼本身還是要對才能真的
 # 登入，這條路只是繞過「一定要手機/LINE」這關，不是繞過密碼）。
-ADMIN_KIOSK_KEY = "ysCGXS8HhSLC1NErqHzQmXMBmZMvzDLU0Gh9m__7Rw8"
+ADMIN_KIOSK_KEY = "-H8lFkMdk2Kwmg9k8wD-0UWcQnDRtL6J-kxrWALY0mk"  # 這是全新產生的專屬金鑰，只給無名牛排這套系統用
 
 # KV binding：把下面的 <your-namespace-id> 換成你實際的 KV namespace ID
 # 這個 ID 可以在 Cloudflare Dashboard → Workers & Pages → KV 那頁，
 # 點進你建立的 namespace（例如 admin-rate-limit）就會看到
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "b0fc900c4d124020af42ef962b16fa54"
+id = "請填入你在Cloudflare新建的KV namespace ID"  # ⚠️ 還沒填！也要新建一個獨立的，不要沿用台雞店那個
