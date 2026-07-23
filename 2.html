@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>咱的台雞店・手機後台</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Microsoft JhengHei','Segoe UI',Arial,sans-serif; -webkit-tap-highlight-color:transparent; }
+    :root {
+        --primary:#1a3a5c; --accent:#2e7d9e; --success:#16a34a; --danger:#dc2626; --warning:#d97706;
+        --light:#f8f9fa; --dark:#1e293b; --gray:#64748b; --border:#e2e8f0;
+    }
+    body { background:#eef2f7; min-height:100vh; padding-bottom:76px; }
+    .wrap { max-width:520px; margin:0 auto; }
+
+    .login-card {
+        max-width:340px; margin:80px auto; background:#fff; border-radius:20px;
+        box-shadow:0 15px 30px rgba(0,0,0,.1); padding:32px 24px; text-align:center;
+    }
+    .login-card input {
+        width:100%; padding:14px 15px; border:2px solid var(--border); border-radius:10px;
+        font-size:16px; margin:16px 0; text-align:center;
+    }
+    .btn { border:none; border-radius:10px; font-weight:700; cursor:pointer; transition:.15s; font-size:15px; }
+    .btn-primary { background:var(--primary); color:#fff; padding:14px 20px; width:100%; }
+    .btn-sm { padding:8px 14px; font-size:13px; border-radius:8px; }
+    .btn-success { background:var(--success); color:#fff; }
+    .btn-danger { background:var(--danger); color:#fff; }
+    .btn-outline { background:#fff; border:1.5px solid var(--border); color:var(--dark); }
+    .error-text { color:var(--danger); font-size:13px; min-height:18px; }
+
+    header { position:sticky; top:0; z-index:20; background:var(--primary); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; }
+    header h1 { font-size:18px; font-weight:900; }
+    header .refresh-btn { background:rgba(255,255,255,.15); color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:13px; font-weight:700; }
+
+    .toast { position:fixed; top:70px; left:50%; transform:translateX(-50%); background:var(--dark); color:#fff; padding:10px 20px; border-radius:10px; font-size:13px; z-index:200; opacity:0; transition:.25s; pointer-events:none; }
+    .toast.show { opacity:1; }
+
+    main { padding:12px; }
+    .pane { display:none; }
+    .pane.active { display:block; }
+
+    .card { background:#fff; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,.05); padding:14px 16px; margin-bottom:10px; }
+    .row { display:flex; align-items:center; gap:10px; }
+    .row + .row { margin-top:10px; }
+    .item-name { font-weight:900; font-size:15px; color:var(--dark); flex:1; }
+    .item-sub { font-size:11px; color:var(--gray); }
+    .field-label { font-size:11px; color:var(--gray); margin-bottom:3px; display:block; }
+    .num-input { width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:15px; text-align:center; }
+    .text-input { width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; }
+    .field-col { flex:1; min-width:0; }
+
+    .status-pill { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; white-space:nowrap; }
+    .status-on { background:#dcfce7; color:#166534; }
+    .status-off { background:#fee2e2; color:#991b1b; }
+
+    .save-bar { position:sticky; bottom:64px; background:#fff; border-top:1px solid var(--border); padding:10px 12px; display:none; }
+    .save-bar.show { display:block; }
+
+    .order-card .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+    .order-card .num { font-weight:900; font-size:14px; }
+    .order-card .time { font-size:11px; color:var(--gray); }
+    .order-card .items { font-size:12.5px; color:#334155; margin:6px 0; line-height:1.5; }
+    .order-card .amount { font-weight:900; color:var(--primary); }
+    .status-chip { font-size:11px; font-weight:700; padding:3px 9px; border-radius:12px; white-space:nowrap; }
+    .status-chip.pending { background:#fef3c7; color:#92400e; }
+    .status-chip.confirmed { background:#dcfce7; color:#166534; }
+    .status-chip.making { background:#e0e7ff; color:#3730a3; }
+    .status-chip.done { background:#f1f5f9; color:#64748b; }
+    .status-chip.expired { background:#fee2e2; color:#991b1b; }
+    .status-chip.cancelled { background:#f1f5f9; color:#94a3b8; }
+    .order-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+
+    .empty-state { text-align:center; padding:40px 16px; color:var(--gray); font-size:13px; }
+    .loading { text-align:center; padding:30px; color:var(--gray); font-size:13px; }
+
+    .toggle-switch { position:relative; width:44px; height:24px; flex-shrink:0; }
+    .toggle-switch input { opacity:0; width:0; height:0; }
+    .toggle-slider { position:absolute; inset:0; background:#cbd5e1; border-radius:24px; cursor:pointer; transition:.2s; }
+    .toggle-slider:before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+    .toggle-switch input:checked + .toggle-slider { background:var(--success); }
+    .toggle-switch input:checked + .toggle-slider:before { transform:translateX(20px); }
+
+    .section-label { font-size:13px; font-weight:900; color:var(--gray); margin:16px 4px 8px; text-transform:uppercase; letter-spacing:.5px; }
+
+    nav.bottom-tabs { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--border); display:flex; z-index:30; }
+    nav.bottom-tabs button { flex:1; background:none; border:none; padding:10px 4px 8px; font-size:11px; color:var(--gray); display:flex; flex-direction:column; align-items:center; gap:2px; }
+    nav.bottom-tabs button .ic { font-size:20px; }
+    nav.bottom-tabs button.active { color:var(--primary); font-weight:900; }
+
+    .filter-tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:10px; }
+    .filter-tabs button { flex-shrink:0; padding:6px 14px; border-radius:20px; border:1.5px solid var(--border); background:#fff; font-size:12px; color:var(--gray); }
+    .filter-tabs button.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <div class="login-card" id="loginBox">
+        <div style="font-size:40px;margin-bottom:10px;">🔒</div>
+        <h2 style="margin-bottom:6px;">咱的台雞店・手機後台</h2>
+        <p style="color:var(--gray);font-size:13px;">庫存／訂單／促銷／儲值，隨時隨地操作</p>
+        <input type="password" id="passwordInput" placeholder="管理密碼" autocomplete="off">
+        <button class="btn btn-primary" onclick="tryLogin()">登入</button>
+        <div class="error-text" id="loginError"></div>
+    </div>
+
+    <div id="appArea" style="display:none;">
+        <header>
+            <h1 id="pageTitle">📦 庫存管理</h1>
+            <button class="refresh-btn" onclick="refreshCurrentTab()">↻ 重新整理</button>
+        </header>
+
+        <main>
+            <!-- ══════ 庫存管理 ══════ -->
+            <div class="pane active" id="pane-stock">
+                <div class="loading" id="stockLoading">載入中...</div>
+                <div id="stockList"></div>
+                <div class="empty-state" id="stockEmpty" style="display:none;">目前沒有菜單品項</div>
+            </div>
+            <div class="save-bar" id="stockSaveBar">
+                <button class="btn btn-success" style="width:100%;" onclick="saveAllStockChanges()">💾 儲存所有變更</button>
+            </div>
+
+            <!-- ══════ 訂單管理 ══════ -->
+            <div class="pane" id="pane-orders">
+                <div class="filter-tabs">
+                    <button class="active" data-status="" onclick="setOrderFilter('', this)">全部</button>
+                    <button data-status="未匯款" onclick="setOrderFilter('未匯款', this)">未匯款</button>
+                    <button data-status="已匯款" onclick="setOrderFilter('已匯款', this)">已匯款</button>
+                    <button data-status="準備中" onclick="setOrderFilter('準備中', this)">準備中</button>
+                    <button data-status="已完成" onclick="setOrderFilter('已完成', this)">已完成</button>
+                </div>
+                <div class="loading" id="ordersLoading">載入中...</div>
+                <div id="ordersList"></div>
+                <div class="empty-state" id="ordersEmpty" style="display:none;">沒有符合條件的訂單</div>
+            </div>
+
+            <!-- ══════ 促銷/公告 ══════ -->
+            <div class="pane" id="pane-promo">
+                <div class="section-label">🏷️ 優惠規則</div>
+                <div class="loading" id="promoLoading">載入中...</div>
+                <div id="promoList"></div>
+                <div class="empty-state" id="promoEmpty" style="display:none;">目前沒有優惠規則</div>
+
+                <div class="section-label">📢 促銷公告</div>
+                <div id="announceList"></div>
+                <div class="empty-state" id="announceEmpty" style="display:none;">目前沒有公告</div>
+            </div>
+
+            <!-- ══════ 儲值管理 ══════ -->
+            <div class="pane" id="pane-topup">
+                <div class="loading" id="topupLoading">載入中...</div>
+                <div id="topupList"></div>
+                <div class="empty-state" id="topupEmpty" style="display:none;">目前沒有待確認的儲值申請</div>
+            </div>
+
+            <!-- ══════ 付款回報 ══════ -->
+            <div class="pane" id="pane-payreport">
+                <div class="filter-tabs">
+                    <button class="active" data-pr="unconfirmed" onclick="setPayReportFilter('unconfirmed', this)">待確認</button>
+                    <button data-pr="all" onclick="setPayReportFilter('all', this)">全部</button>
+                </div>
+                <div class="loading" id="payReportLoading">載入中...</div>
+                <div id="payReportList"></div>
+                <div class="empty-state" id="payReportEmpty" style="display:none;">目前沒有付款回報</div>
+            </div>
+        </main>
+
+        <nav class="bottom-tabs">
+            <button class="active" data-tab="stock" onclick="switchTab('stock')"><span class="ic">📦</span>庫存</button>
+            <button data-tab="orders" onclick="switchTab('orders')"><span class="ic">📋</span>訂單</button>
+            <button data-tab="promo" onclick="switchTab('promo')"><span class="ic">🏷️</span>促銷</button>
+            <button data-tab="topup" onclick="switchTab('topup')"><span class="ic">💰</span>儲值</button>
+            <button data-tab="payreport" onclick="switchTab('payreport')"><span class="ic">🧾</span>回報</button>
+        </nav>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    // ⚠️ 跟其他頁面用同一個 Google Apps Script 網址
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx3PLB-JN29l7dmPSmr6lOCRMCvSCCCK0q1pZW0YFWM6FiyLen3iS-Fa-MogmTMa9ls/exec';
+
+    let password = '';
+    let currentTab = 'stock';
+    let loadedTabs = new Set();
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2200);
+    }
+    function escapeHtml(str) {
+        return String(str == null ? '' : str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ────────────────────────────────────────────
+    // 登入：直接用密碼打一次getMenu以外「需要密碼」的API驗證（用getOrders測試）
+    // ────────────────────────────────────────────
+    function tryLogin() {
+        const pw = document.getElementById('passwordInput').value.trim();
+        const errEl = document.getElementById('loginError');
+        errEl.textContent = '';
+        if (!pw) { errEl.textContent = '請輸入密碼'; return; }
+        password = pw;
+        fetch(`${WEB_APP_URL}?action=getOrders&password=${encodeURIComponent(pw)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status !== 'success') {
+                    errEl.textContent = data.message || '登入失敗';
+                    return;
+                }
+                document.getElementById('loginBox').style.display = 'none';
+                document.getElementById('appArea').style.display = 'block';
+                loadStock();
+            })
+            .catch(err => { errEl.textContent = '無法連線：' + err.message; });
+    }
+
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+        document.getElementById('pane-' + tab).classList.add('active');
+        document.querySelectorAll('nav.bottom-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+        const titles = { stock: '📦 庫存管理', orders: '📋 訂單管理', promo: '🏷️ 促銷／公告', topup: '💰 儲值管理', payreport: '🧾 付款回報' };
+        document.getElementById('pageTitle').textContent = titles[tab];
+        if (!loadedTabs.has(tab)) {
+            loadedTabs.add(tab);
+            if (tab === 'orders') loadOrders();
+            else if (tab === 'promo') loadPromo();
+            else if (tab === 'topup') loadTopup();
+            else if (tab === 'payreport') loadPayReport();
+        }
+    }
+    function refreshCurrentTab() {
+        if (currentTab === 'stock') loadStock();
+        else if (currentTab === 'orders') loadOrders();
+        else if (currentTab === 'promo') loadPromo();
+        else if (currentTab === 'topup') loadTopup();
+        else if (currentTab === 'payreport') loadPayReport();
+    }
+
+    // ════════════════════════════════════════════
+    // ① 庫存管理：安全庫存／上下架／售價／成本，一次全部載入、逐項編輯、按「儲存所有變更」一次送出
+    // ════════════════════════════════════════════
+    let menuItems = [];
+    let stockDirty = false;
+
+    async function loadStock() {
+        document.getElementById('stockLoading').style.display = 'block';
+        document.getElementById('stockList').innerHTML = '';
+        document.getElementById('stockEmpty').style.display = 'none';
+        stockDirty = false;
+        document.getElementById('stockSaveBar').classList.remove('show');
+        try {
+            const res = await fetch(`${WEB_APP_URL}?action=getMenu`);
+            const data = await res.json();
+            if (data.status !== 'success') { showToast('❌ ' + data.message); return; }
+            menuItems = data.items || [];
+            renderStock();
+        } catch (err) {
+            showToast('❌ 無法連線：' + err.message);
+        } finally {
+            document.getElementById('stockLoading').style.display = 'none';
+        }
+    }
+
+    function renderStock() {
+        const list = document.getElementById('stockList');
+        if (menuItems.length === 0) { document.getElementById('stockEmpty').style.display = 'block'; return; }
+        // 依分類分組顯示
+        const byCat = {};
+        menuItems.forEach((it, idx) => {
+            const cat = it.category || '未分類';
+            if (!byCat[cat]) byCat[cat] = [];
+            byCat[cat].push(idx);
+        });
+        let html = '';
+        Object.keys(byCat).forEach(cat => {
+            html += `<div class="section-label">${escapeHtml(cat)}</div>`;
+            byCat[cat].forEach(idx => {
+                const it = menuItems[idx];
+                const isOn = it.status === '供應中';
+                html += `
+                <div class="card">
+                    <div class="row">
+                        <div class="item-name">${escapeHtml(it.icon || '')} ${escapeHtml(it.name)}</div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${isOn ? 'checked' : ''} onchange="onStockFieldChange(${idx}, 'status', this.checked ? '供應中' : '已下架')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="row">
+                        <div class="field-col">
+                            <span class="field-label">售價</span>
+                            <input type="number" class="num-input" value="${it.price || 0}" oninput="onStockFieldChange(${idx},'price',this.value)">
+                        </div>
+                        <div class="field-col">
+                            <span class="field-label">成本</span>
+                            <input type="number" class="num-input" value="${it.cost || 0}" oninput="onStockFieldChange(${idx},'cost',this.value)">
+                        </div>
+                        <div class="field-col">
+                            <span class="field-label">今日限量（0=不限）</span>
+                            <input type="number" class="num-input" value="${it.safetyStock || 0}" oninput="onStockFieldChange(${idx},'safetyStock',this.value)">
+                        </div>
+                    </div>
+                    ${it.safetyStock > 0 ? `<div class="item-sub" style="margin-top:6px;">今日已賣出 ${it.soldToday || 0} 份，剩餘 ${Math.max(0, it.safetyStock - (it.soldToday || 0))} 份</div>` : ''}
+                </div>`;
+            });
+        });
+        list.innerHTML = html;
+    }
+
+    function onStockFieldChange(idx, field, value) {
+        if (field === 'status') menuItems[idx][field] = value;
+        else menuItems[idx][field] = Number(value) || 0;
+        stockDirty = true;
+        document.getElementById('stockSaveBar').classList.add('show');
+    }
+
+    async function saveAllStockChanges() {
+        if (!stockDirty) { showToast('沒有變更'); return; }
+        try {
+            // ★ updateMenu是GAS doGet的action路由，items要用query string帶（不是走doPost）
+            const url = `${WEB_APP_URL}?action=updateMenu&password=${encodeURIComponent(password)}&items=${encodeURIComponent(JSON.stringify(menuItems))}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast('✅ 已儲存，共 ' + menuItems.length + ' 項');
+                stockDirty = false;
+                document.getElementById('stockSaveBar').classList.remove('show');
+            } else {
+                showToast('❌ ' + data.message);
+            }
+        } catch (err) {
+            showToast('❌ 儲存失敗：' + err.message);
+        }
+    }
+
+    // ════════════════════════════════════════════
+    // ② 訂單管理
+    // ════════════════════════════════════════════
+    let allOrders = [];
+    let orderFilter = '';
+
+    async function loadOrders() {
+        document.getElementById('ordersLoading').style.display = 'block';
+        document.getElementById('ordersList').innerHTML = '';
+        document.getElementById('ordersEmpty').style.display = 'none';
+        try {
+            const res = await fetch(`${WEB_APP_URL}?action=getOrders&password=${encodeURIComponent(password)}`);
+            const data = await res.json();
+            if (data.status !== 'success') { showToast('❌ ' + data.message); return; }
+            allOrders = data.orders || [];
+            renderOrders();
+        } catch (err) {
+            showToast('❌ 無法連線：' + err.message);
+        } finally {
+            document.getElementById('ordersLoading').style.display = 'none';
+        }
+    }
+
+    function setOrderFilter(status, btn) {
+        orderFilter = status;
+        document.querySelectorAll('.filter-tabs button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderOrders();
+    }
+
+    function statusToClass(status) {
+        if (status === '未匯款') return 'pending';
+        if (status === '已匯款') return 'confirmed';
+        if (status === '準備中') return 'making';
+        if (status === '已完成') return 'done';
+        if (status === '已逾期') return 'expired';
+        if (status === '已取消') return 'cancelled';
+        return 'pending';
+    }
+
+    function renderOrders() {
+        const filtered = orderFilter ? allOrders.filter(o => o.status === orderFilter) : allOrders;
+        const list = document.getElementById('ordersList');
+        if (filtered.length === 0) { list.innerHTML = ''; document.getElementById('ordersEmpty').style.display = 'block'; return; }
+        document.getElementById('ordersEmpty').style.display = 'none';
+        list.innerHTML = filtered.slice(0, 60).map(o => {
+            const actions = [];
+            if (o.status === '未匯款') actions.push(`<button class="btn btn-sm btn-success" onclick="quickUpdateOrder(${o.rowNumber},'已匯款')">✔ 確認已匯款</button>`);
+            if (o.status === '已匯款') actions.push(`<button class="btn btn-sm btn-outline" onclick="quickUpdateOrder(${o.rowNumber},'準備中')">🍳 開始準備</button>`);
+            if (o.status === '準備中') actions.push(`<button class="btn btn-sm btn-success" onclick="quickUpdateOrder(${o.rowNumber},'已完成')">✅ 標記完成</button>`);
+            if (o.status !== '已取消' && o.status !== '已完成') actions.push(`<button class="btn btn-sm btn-danger" onclick="quickUpdateOrder(${o.rowNumber},'已取消')">✕ 取消訂單</button>`);
+            return `
+            <div class="card order-card">
+                <div class="top">
+                    <div>
+                        <div class="num">${escapeHtml(o.orderNumber)}</div>
+                        <div class="time">${escapeHtml(o.createdAt)}・${escapeHtml(o.customerName)}</div>
+                    </div>
+                    <span class="status-chip ${statusToClass(o.status)}">${escapeHtml(o.status)}</span>
+                </div>
+                <div class="items">${escapeHtml(o.items)}</div>
+                <div class="row" style="justify-content:space-between;">
+                    <span class="amount">$${o.total}</span>
+                    <span class="item-sub">取餐 ${escapeHtml(o.pickupDate)} ${escapeHtml(o.pickupTime)}</span>
+                </div>
+                <div class="order-actions">${actions.join('')}</div>
+            </div>`;
+        }).join('');
+    }
+
+    async function quickUpdateOrder(rowNumber, newStatus) {
+        try {
+            const url = `${WEB_APP_URL}?action=updateOrderStatus&password=${encodeURIComponent(password)}&rowNumber=${rowNumber}&status=${encodeURIComponent(newStatus)}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast('✅ 已更新為「' + newStatus + '」');
+                loadOrders();
+            } else {
+                showToast('❌ ' + data.message);
+            }
+        } catch (err) {
+            showToast('❌ 更新失敗：' + err.message);
+        }
+    }
+
+    // ════════════════════════════════════════════
+    // ③ 促銷規則／公告
+    // ════════════════════════════════════════════
+    let promoRules = [];
+    let announcements = [];
+
+    async function loadPromo() {
+        document.getElementById('promoLoading').style.display = 'block';
+        try {
+            const [ruleRes, annRes] = await Promise.all([
+                fetch(`${WEB_APP_URL}?action=getPromoRules`),
+                fetch(`${WEB_APP_URL}?action=getAnnouncements`)
+            ]);
+            const ruleData = await ruleRes.json();
+            const annData = await annRes.json();
+            promoRules = ruleData.rules || [];
+            announcements = annData.announcements || [];
+            renderPromo();
+        } catch (err) {
+            showToast('❌ 無法連線：' + err.message);
+        } finally {
+            document.getElementById('promoLoading').style.display = 'none';
+        }
+    }
+
+    function renderPromo() {
+        const promoList = document.getElementById('promoList');
+        document.getElementById('promoEmpty').style.display = promoRules.length ? 'none' : 'block';
+        promoList.innerHTML = promoRules.map((r, idx) => `
+            <div class="card">
+                <div class="row">
+                    <div class="item-name">${escapeHtml(r.name)}</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="togglePromoRule(${idx}, this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="item-sub">${escapeHtml(r.type)}</div>
+            </div>
+        `).join('');
+
+        const annList = document.getElementById('announceList');
+        document.getElementById('announceEmpty').style.display = announcements.length ? 'none' : 'block';
+        annList.innerHTML = announcements.map((a, idx) => `
+            <div class="card">
+                <div class="row">
+                    <textarea class="text-input" rows="2" oninput="onAnnounceChange(${idx}, this.value)" style="flex:1;">${escapeHtml(a.content)}</textarea>
+                    <label class="toggle-switch">
+                        <input type="checkbox" ${a.enabled ? 'checked' : ''} onchange="toggleAnnounce(${idx}, this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <button class="btn btn-sm btn-outline" style="margin-top:8px;" onclick="saveOneAnnounce(${idx})">💾 儲存這則公告</button>
+            </div>
+        `).join('');
+    }
+
+    async function togglePromoRule(idx, enabled) {
+        promoRules[idx].enabled = enabled;
+        await savePromoRules();
+    }
+    async function savePromoRules() {
+        try {
+            const url = `${WEB_APP_URL}?action=updatePromoRules&password=${encodeURIComponent(password)}&rules=${encodeURIComponent(JSON.stringify(promoRules))}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.status === 'success') showToast('✅ 已更新優惠規則');
+            else showToast('❌ ' + data.message);
+        } catch (err) { showToast('❌ 更新失敗：' + err.message); }
+    }
+
+    function onAnnounceChange(idx, value) { announcements[idx].content = value; }
+    async function toggleAnnounce(idx, enabled) {
+        announcements[idx].enabled = enabled;
+        await saveAnnouncements();
+    }
+    async function saveOneAnnounce(idx) { await saveAnnouncements(); }
+    async function saveAnnouncements() {
+        try {
+            const url = `${WEB_APP_URL}?action=updateAnnouncements&password=${encodeURIComponent(password)}&announcements=${encodeURIComponent(JSON.stringify(announcements))}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.status === 'success') showToast('✅ 已更新公告');
+            else showToast('❌ ' + data.message);
+        } catch (err) { showToast('❌ 更新失敗：' + err.message); }
+    }
+
+    // ════════════════════════════════════════════
+    // ④ 儲值申請確認
+    // ════════════════════════════════════════════
+    let topupRecords = [];
+
+    async function loadTopup() {
+        document.getElementById('topupLoading').style.display = 'block';
+        try {
+            const res = await fetch(`${WEB_APP_URL}?action=getTopupRequests&password=${encodeURIComponent(password)}`);
+            const data = await res.json();
+            if (data.status !== 'success') { showToast('❌ ' + data.message); return; }
+            topupRecords = (data.records || []).filter(r => r.status === '待確認');
+            renderTopup();
+        } catch (err) {
+            showToast('❌ 無法連線：' + err.message);
+        } finally {
+            document.getElementById('topupLoading').style.display = 'none';
+        }
+    }
+
+    function renderTopup() {
+        const list = document.getElementById('topupList');
+        document.getElementById('topupEmpty').style.display = topupRecords.length ? 'none' : 'block';
+        list.innerHTML = topupRecords.map(r => `
+            <div class="card">
+                <div class="row">
+                    <div class="item-name">${escapeHtml(r.customerName || r.lineDisplayName || '（未知）')}</div>
+                    <span class="amount">+$${r.amount}</span>
+                </div>
+                <div class="item-sub">${escapeHtml(r.createdAt)}・${escapeHtml(r.customerPhone || '')}</div>
+                <div class="order-actions">
+                    <button class="btn btn-sm btn-success" onclick="confirmTopup(${r.rowNumber}, true)">✔ 確認入帳</button>
+                    <button class="btn btn-sm btn-danger" onclick="confirmTopup(${r.rowNumber}, false)">✕ 駁回</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function confirmTopup(rowNumber, approve) {
+        try {
+            const url = `${WEB_APP_URL}?action=confirmTopupRequest&password=${encodeURIComponent(password)}&rowNumber=${rowNumber}&approve=${approve}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast(approve ? '✅ 已確認入帳' : '已駁回');
+                loadTopup();
+            } else {
+                showToast('❌ ' + data.message);
+            }
+        } catch (err) {
+            showToast('❌ 操作失敗：' + err.message);
+        }
+    }
+
+    document.getElementById('passwordInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+
+    // ════════════════════════════════════════════
+    // ⑤ 付款回報確認：客人在前台回報「取餐號＋電話後三碼＋金額」，後端已經
+    // 自動比對出對應訂單，這裡只需要人工核對銀行帳戶入帳後按「確認收款」，
+    // 系統會自動把對應訂單狀態改成已匯款（呼叫 confirmPaymentReport action）。
+    // ════════════════════════════════════════════
+    let payReports = [];
+    let payReportFilter = 'unconfirmed';
+
+    async function loadPayReport() {
+        document.getElementById('payReportLoading').style.display = 'block';
+        document.getElementById('payReportList').innerHTML = '';
+        document.getElementById('payReportEmpty').style.display = 'none';
+        try {
+            const res = await fetch(`${WEB_APP_URL}?action=getPaymentReports&password=${encodeURIComponent(password)}`);
+            const data = await res.json();
+            if (data.status !== 'success') { showToast('❌ ' + data.message); return; }
+            payReports = data.reports || [];
+            renderPayReport();
+        } catch (err) {
+            showToast('❌ 無法連線：' + err.message);
+        } finally {
+            document.getElementById('payReportLoading').style.display = 'none';
+        }
+    }
+
+    function setPayReportFilter(f, btn) {
+        payReportFilter = f;
+        document.querySelectorAll('#pane-payreport .filter-tabs button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderPayReport();
+    }
+
+    function renderPayReport() {
+        // 待確認優先顯示比對成功的（confirmed欄位為空），全部則不篩選，最新的排前面
+        const filtered = (payReportFilter === 'unconfirmed'
+            ? payReports.filter(r => !r.confirmed)
+            : payReports
+        ).slice().reverse();
+
+        const list = document.getElementById('payReportList');
+        if (filtered.length === 0) { list.innerHTML = ''; document.getElementById('payReportEmpty').style.display = 'block'; return; }
+        document.getElementById('payReportEmpty').style.display = 'none';
+
+        list.innerHTML = filtered.map(r => {
+            const matched = !!r.matchedOrderNumber;
+            const canConfirm = matched && !r.confirmed;
+            return `
+            <div class="card">
+                <div class="row" style="justify-content:space-between;">
+                    <div class="item-name">${matched ? escapeHtml(r.matchedCustomerName || '（未知）') : '⚠️ 未比對到訂單'}</div>
+                    <span class="amount">$${r.reportedAmount}</span>
+                </div>
+                <div class="item-sub">${escapeHtml(r.reportedAt)}・取餐號 ${escapeHtml(String(r.takeNumber))}・電話末三碼 ${escapeHtml(String(r.phoneLast3))}・銀行末三碼 ${escapeHtml(String(r.bankLast3))}</div>
+                ${matched ? `<div class="item-sub" style="margin-top:4px;">對應訂單：${escapeHtml(r.matchedOrderNumber)}（訂單金額 $${r.matchedOrderTotal}）</div>` : ''}
+                ${r.confirmed ? `<div class="item-sub" style="margin-top:4px;color:var(--success);">✔ ${escapeHtml(r.confirmed)}</div>` : ''}
+                ${canConfirm ? `<div class="order-actions"><button class="btn btn-sm btn-success" onclick="confirmPayReport(${r.rowNumber})">✔ 核對銀行帳戶後確認收款</button></div>` : ''}
+            </div>`;
+        }).join('');
+    }
+
+    async function confirmPayReport(rowNumber) {
+        try {
+            const url = `${WEB_APP_URL}?action=confirmPaymentReport&password=${encodeURIComponent(password)}&rowNumber=${rowNumber}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast('✅ ' + data.message);
+                loadPayReport();
+            } else {
+                showToast('❌ ' + data.message);
+            }
+        } catch (err) {
+            showToast('❌ 確認失敗：' + err.message);
+        }
+    }
+</script>
+</body>
+</html>

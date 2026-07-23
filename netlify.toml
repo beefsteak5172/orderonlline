@@ -1,0 +1,9 @@
+# ★ 這個檔案要放在你GitHub repo的根目錄（跟index.html同一層），
+# Netlify部署時會自動讀取這個設定，載入edge-functions資料夾裡的守門邏輯。
+#
+# ★ path只設定成首頁（"/"），不是"/*"（所有路徑）。這樣正式的訂餐系統
+# （首頁）還是會被LINE守門機制保護，但index-test.html這個測試專用頁面
+# 不受這個機制限制，方便在電腦瀏覽器上直接測試，不用偽裝User-Agent。
+[[edge_functions]]
+  function = "line-gate"
+  path = "/"
