@@ -1,37 +1,10 @@
 <!DOCTYPE html>
-<!-- © 無名牛排 https://wumingsteak-order.anonymousbeefsteak.workers.dev 盜用必究 -->
+<!-- © 無名牛排 https://orderonlline.anonymousbeefsteak.workers.dev -->
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>無名牛排 - 線上訂餐</title>
-    <!-- ★ 網域鎖：放在所有東西最前面，第一時間檢查。只允許自己的正式網域
-         跟本機測試環境執行，複製整包程式碼貼到別的網址上會直接看到警示畫面。
-         ★ 白名單特別留意：這份 index.html 除了部署在 Netlify，Code.gs 的 doGet
-         無參數時也會直接從 Google Apps Script 自己的網域把同一份檔案渲染出來
-         （包一層 script.google.com iframe，實際內容在動態產生的
-         *.googleusercontent.com 子網域，每次執行都可能不一樣，沒辦法寫死單一
-         網址，只能用結尾比對）。這兩條路都是你自己合法的進入點，不能被鎖擋掉，
-         所以都要放進允許清單，不是只有Netlify那個網址。
-         注意這只防「整包複製貼到別的網域」這種懶人抄法，改掉這段程式碼本身
-         還是能繞過去——真正擋得住的是後端的idToken驗證跟金額重新核算。 -->
-    <script>
-      (function() {
-        var host = location.hostname;
-        var allowed = (
-          host === 'wumingsteak-order.anonymousbeefsteak.workers.dev' ||
-          host === 'localhost' ||
-          host === '127.0.0.1' ||
-          host === 'script.google.com' ||
-          host === 'script.googleusercontent.com' ||
-          /\.googleusercontent\.com$/.test(host)
-        );
-        if (!allowed) {
-          window.stop();
-          location.replace('https://www.google.com');
-        }
-      })();
-    </script>
     <!-- ★ 必須放最前面：GAS的doGet頁面預設被包在Google自己的iframe裡
          （最上層是script.google.com，實際內容在googleusercontent.com子iframe），
          LIFF需要自己是最上層視窗才能正常init/登入/拿profile，先強制跳出這層包裝 -->
@@ -1059,26 +1032,14 @@
 
         // 備援菜單資料：若無法連線 Google Apps Script 讀取最新菜單時使用
         // ★ LIFF 設定：從 LINE Developers Console 申請到的 LIFF ID
-        const LIFF_ID = '請填入無名牛排客人點餐用的LIFF_ID'; // ⚠️ 要在無名牛排專用的LINE Developers Channel底下新增LIFF App拿到的ID，不能沿用台雞店的
+        const LIFF_ID = '2010802929-ObyjmTCf'; // ✅ 已換成你的無名牛排 LIFF ID
         window.lineUserId = '';
         window.lineDisplayName = '';
         window.lineIdToken = '';
 
         window.liffReady = false; // LIFF初始化是否已完成，分享功能要靠這個旗標判斷能不能用liff API
 
-        // ⚠️★ 暫時測試用開關：無名牛排的 LIFF_ID 還沒申請好，一般瀏覽器打開會
-        // 直接被導去 Google（liff.isInClient()判斷失敗）。網址後面加上
-        // ?preview=1 可以跳過整個 LIFF/LINE 檢查，用來先看菜單、UI、加入購物車
-        // 等畫面流程——但因為沒有真實 LINE 身份，送出訂單／查餘額／查我的訂單
-        // 這些一定要驗證身份的動作還是會失敗（後端會擋，這是正確行為，不是bug）。
-        // ★ 正式上線前一定要把這一段拿掉，不能讓客人繞過LINE驗證。
-        const PREVIEW_MODE = new URLSearchParams(window.location.search).get('preview') === '1';
-
         async function initLiff() {
-            if (PREVIEW_MODE) {
-                console.warn('[測試模式] 已跳過 LIFF/LINE 檢查，僅供預覽畫面用，訂單相關功能無法使用');
-                return;
-            }
             if (typeof liff === 'undefined') {
                 document.body.innerHTML = '<div style="height:100vh;display:flex;align-items:center;justify-content:center;background:#000;color:#fff;text-align:center;padding:20px;">連線失敗，請檢查網路後重新開啟。</div>';
                 return;
@@ -1086,13 +1047,6 @@
             try {
                 await liff.init({ liffId: LIFF_ID });
                 window.liffReady = true;
-
-                // ★ 嚴格限制：僅限手機 LINE App 內開啟，禁止電腦版及外部瀏覽器
-                // 一旦偵測到非 LINE 環境，直接跳轉到 Google，不顯示任何畫面
-                if (!liff.isInClient()) {
-                    window.location.replace('https://www.google.com');
-                    return;
-                }
 
                 // ★ 強制登入驗證：未登入者直接阻擋所有內容
                 if (!liff.isLoggedIn()) {
