@@ -173,6 +173,47 @@ export default {
         const ua = request.headers.get('User-Agent') || '';
         const isMobile = MOBILE_UA_REGEX.test(ua);
 
+        // ★ 2026-07-22 新增：裝置門禁改成可以透過網頁開關設定，不用再叫
+        // 開發者改程式碼、重新部署才能調整。用RATE_LIMIT_KV存一個開關值
+        // （這個KV本來就有綁定，借來用不用另外多開一個KV namespace）。
+        // 目前預設「解除限制」（沒設定過的話，KV裡讀不到值，視為關閉），
+        // 電腦、一般瀏覽器都能直接開，不會被擋轉去Google。
+        // ⚠️ 這段一定要放在下面「/api/ 開頭都轉去GAS代理」的判斷之前，
+        // 不然/api/device-restriction這個路徑本身也是/api/開頭，會先被
+        // 那條規則攔截、永遠執行不到這裡。
+        if (url.pathname === '/api/device-restriction') {
+            const kv = env.RATE_LIMIT_KV;
+            if (request.method === 'GET') {
+                const enabled = kv ? (await kv.get('device_restriction_enabled')) === 'true' : false;
+                return withSecurityHeaders(jsonResponse({ status: 'success', enabled }));
+            }
+            if (request.method === 'POST') {
+                // ★ 2026-07-22 修正：改用大家平常在用的後台共用密碼驗證，不要求
+                // 額外記一組kioskKey——kioskKey是給kiosk電腦另一種用途的，
+                // 一般後台使用者不會知道。做法是把密碼轉發給GAS那邊既有的
+                // 密碼驗證邏輯確認一次，驗證通過才真的執行開關，不在Worker
+                // 這裡自己另外存一份密碼、維護兩套密碼邏輯。
+                const bodyUrl = new URL(request.url);
+                const passwordForToggle = bodyUrl.searchParams.get('password') || '';
+                if (!env.GAS_WEB_APP_URL) {
+                    return withSecurityHeaders(jsonResponse({ status: 'error', message: '伺服器尚未設定完成' }, 500));
+                }
+                try {
+                    const verifyResp = await fetch(env.GAS_WEB_APP_URL + '?action=getFeatureToggles&password=' + encodeURIComponent(passwordForToggle));
+                    const verifyData = await verifyResp.json();
+                    if (verifyData.status !== 'success') {
+                        return withSecurityHeaders(jsonResponse({ status: 'error', message: '密碼錯誤' }, 403));
+                    }
+                } catch (verifyErr) {
+                    return withSecurityHeaders(jsonResponse({ status: 'error', message: '驗證密碼時發生錯誤：' + verifyErr.message }, 500));
+                }
+                const enabledParam = bodyUrl.searchParams.get('enabled') === 'true';
+                if (kv) await kv.put('device_restriction_enabled', String(enabledParam));
+                return withSecurityHeaders(jsonResponse({ status: 'success', enabled: enabledParam }));
+            }
+            return withSecurityHeaders(jsonResponse({ status: 'error', message: '不支援的方法' }, 405));
+        }
+
         // /api/ 底下走代理 + 限流邏輯；不做 UA 擋（密碼本身是驗證），
         // 但一樣套用安全 headers
         if (url.pathname.startsWith('/api/')) {
@@ -191,7 +232,13 @@ export default {
         const isKioskAdmin = url.pathname.startsWith('/admin') &&
             !!env.ADMIN_KIOSK_KEY && kioskKey === env.ADMIN_KIOSK_KEY;
 
-        if (!isKioskAdmin) {
+        // ★ 2026-07-22 修正：裝置門禁現在是可設定的開關，不是寫死一定要
+        // 檢查。預設關閉（沒設定過就是關閉），讀KV裡的值決定要不要真的
+        // 執行下面手機/LINE的檢查。
+        const kvForCheck = env.RATE_LIMIT_KV;
+        const deviceRestrictionEnabled = kvForCheck ? (await kvForCheck.get('device_restriction_enabled')) === 'true' : false;
+
+        if (!isKioskAdmin && deviceRestrictionEnabled) {
             // 其他所有路徑（含首頁、tool_*.html 靜態檔案）：先過裝置門禁
             if (!isMobile) {
                 return withSecurityHeaders(mobileBlockedResponse());

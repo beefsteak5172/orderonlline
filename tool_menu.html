@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>無名牛排・菜單編輯</title>
+<title>咱的台雞店・菜單編輯</title>
 <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family:'Microsoft JhengHei','Segoe UI',Arial,sans-serif; -webkit-tap-highlight-color:transparent; }
     :root {
@@ -124,13 +124,14 @@
     <div id="appArea" style="display:none;">
         <header>
             <h1 id="pageTitle">🍗 菜單品項</h1>
-            <div class="sub">無名牛排</div>
+            <div class="sub">咱的台雞店</div>
         </header>
 
         <div class="filter-tabs">
             <button class="active" data-pane="pane-items" onclick="switchPane('pane-items')">🍗 菜單品項</button>
             <button data-pane="pane-addons" onclick="switchPane('pane-addons')">➕ 加購項目</button>
             <button data-pane="pane-groups" onclick="switchPane('pane-groups')">🎛️ 客製選項</button>
+            <button data-pane="pane-presets" onclick="switchPane('pane-presets')">🗂️ 菜單預設集</button>
         </div>
 
         <div style="display:flex; gap:8px; padding:10px 12px 0;">
@@ -157,6 +158,18 @@
                 <p class="section-hint">這裡設定「一組一組」的選擇（例如「冰塊」這組有正常冰/少冰/去冰可選，「辣度」這組有不辣/小辣/大辣可選）。設定好之後，回到「菜單品項」分頁，替每個品項勾選要套用哪幾組。<br><b>⚠️ 這裡的選項目前無法個別加價</b>，客人選了都是原價。如果是「加購奶茶要多收 15 元」這種需要加價的，請改用「加購項目」分頁設定。</p>
                 <div id="groupsList"></div>
                 <button class="add-row-btn" onclick="addGroupRow()">＋ 新增一組客製選項</button>
+            </div>
+
+            <!-- ★ 2026-07-22 新增：菜單預設集，涵蓋「複製昨天菜單」跟「季節性菜單快速切換」
+                 兩種用途——存成一個有名字的預設集，之後一鍵套用回來 -->
+            <div class="pane" id="pane-presets">
+                <p class="section-hint">把「現在的整份菜單」存成一個有名字的預設集，之後可以一鍵套用回來。用途例如：想備份「昨天的菜單」以防今天改壞了可以復原；或是先存好「冬季菜單」「夏季菜單」，換季直接套用整組。<br><b>⚠️ 套用預設集會直接覆蓋掉現在的整份菜單</b>，套用前建議先把現在的菜單也存一份，以防萬一。</p>
+                <div style="display:flex;gap:6px;margin-bottom:16px;">
+                    <input type="text" id="presetNameInput" placeholder="預設集名稱，例如：冬季菜單" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;">
+                    <button class="btn btn-primary" style="padding:10px 16px;" onclick="saveMenuPreset()">💾 存成預設集</button>
+                </div>
+                <div id="presetsList"></div>
+                <div class="empty-state" id="presetsEmpty" style="display:none;">目前沒有存過任何預設集</div>
             </div>
         </main>
     </div>
@@ -199,8 +212,9 @@
         document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
         document.getElementById(paneId).classList.add('active');
         document.querySelectorAll('.filter-tabs button').forEach(b => b.classList.toggle('active', b.dataset.pane === paneId));
-        const titles = { 'pane-items': '🍗 菜單品項', 'pane-addons': '➕ 加購項目', 'pane-groups': '🎛️ 客製選項' };
+        const titles = { 'pane-items': '🍗 菜單品項', 'pane-addons': '➕ 加購項目', 'pane-groups': '🎛️ 客製選項', 'pane-presets': '🗂️ 菜單預設集' };
         document.getElementById('pageTitle').textContent = titles[paneId];
+        if (paneId === 'pane-presets') loadMenuPresets();
     }
 
     async function tryLogin() {
@@ -719,6 +733,83 @@
         markDirty();
         renderGroups();
         renderMenu();
+    }
+
+    // ★ 2026-07-22 新增：菜單預設集
+    async function loadMenuPresets() {
+        const list = document.getElementById('presetsList');
+        const emptyEl = document.getElementById('presetsEmpty');
+        list.innerHTML = '<div class="loading">載入中...</div>';
+        try {
+            const resp = await fetch(`${WEB_APP_URL}?action=getMenuPresets&password=${encodeURIComponent(password)}`);
+            const data = await resp.json();
+            if (data.status !== 'success') { list.innerHTML = ''; showToast('❌ ' + data.message); return; }
+            const presets = data.presets || [];
+            if (presets.length === 0) {
+                list.innerHTML = '';
+                emptyEl.style.display = 'block';
+                return;
+            }
+            emptyEl.style.display = 'none';
+            list.innerHTML = presets.map(p => `
+                <div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <div>
+                        <div style="font-weight:900;font-size:15px;">${escapeHtml(p.name)}</div>
+                        <div style="font-size:11px;color:var(--gray);">儲存於 ${escapeHtml(p.savedAt)}</div>
+                    </div>
+                    <button class="btn" style="background:var(--primary);color:#fff;padding:8px 16px;" onclick="applyMenuPreset('${escapeHtml(p.name).replace(/'/g, "\\'")}')">套用</button>
+                </div>`).join('');
+        } catch (err) {
+            list.innerHTML = '';
+            showToast('❌ 讀取菜單預設集失敗：' + err.message);
+        }
+    }
+
+    async function saveMenuPreset() {
+        const nameInput = document.getElementById('presetNameInput');
+        const name = nameInput.value.trim();
+        if (!name) { showToast('❌ 請輸入預設集名稱'); return; }
+        try {
+            const resp = await fetch(WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'saveMenuPreset', password, operator: INJECTED_OPERATOR, name })
+            });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                showToast(`✅ 已存成預設集「${name}」`);
+                nameInput.value = '';
+                loadMenuPresets();
+            } else {
+                showToast('❌ ' + data.message);
+            }
+        } catch (err) {
+            showToast('❌ 儲存失敗：' + err.message);
+        }
+    }
+
+    async function applyMenuPreset(name) {
+        if (isDirty && !confirm(`目前的菜單有還沒儲存的變更，套用預設集會直接覆蓋掉現在的整份菜單（包含還沒存檔的變更），確定要套用「${name}」嗎？`)) return;
+        if (!isDirty && !confirm(`確定要套用預設集「${name}」嗎？這會直接覆蓋掉現在的整份菜單。`)) return;
+        try {
+            const resp = await fetch(WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'applyMenuPreset', password, operator: INJECTED_OPERATOR, name })
+            });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                showToast(`✅ 已套用預設集「${name}」`);
+                isDirty = false;
+                document.getElementById('saveBar').classList.remove('show');
+                loadAll(); // 重新載入整份菜單，畫面才會顯示套用後的最新內容
+                switchPane('pane-items');
+            } else {
+                showToast('❌ ' + data.message);
+            }
+        } catch (err) {
+            showToast('❌ 套用失敗：' + err.message);
+        }
     }
 
     async function saveAllChanges() {
