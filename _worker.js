@@ -5,13 +5,6 @@
 // - env.GAS_WEB_APP_URL  → 用 Secret 設定（Dashboard: Settings > Variables > 選 "Secret" 類型；
 //                           或本機用 `npx wrangler secret put GAS_WEB_APP_URL`）
 // - env.RATE_LIMIT_KV    → 用 wrangler.toml 的 [[kv_namespaces]] 綁定
-//
-// ★★★ 2026-07-23：暫時拿掉「不是手機」「不是LINE內建瀏覽器」這兩道門禁，
-// 原因：客人在LINE App裡點LIFF連結卻一直被導去Google，一直查不出是LIFF
-// Endpoint URL設定、部署環境、還是UA判斷式本身的問題，先把這兩道檢查拿掉
-// 讓系統能正常運作、不擋到任何人，之後查出根本原因、確認沒問題了，
-// 建議再把這兩道檢查加回來（否則任何人都能用電腦瀏覽器直接開這個網址，
-// 繞過LINE身份驗證的前提，不是嚴重漏洞但失去了原本這道防線的用意）。
 
 const MOBILE_UA_REGEX = /Mobi|Android|iPhone|iPad|iPod|Windows Phone|BlackBerry/i;
 const MAX_FAILED_ATTEMPTS = 10;
@@ -39,6 +32,17 @@ function withSecurityHeaders(response) {
         status: response.status,
         statusText: response.statusText,
         headers: newHeaders
+    });
+}
+
+function mobileBlockedResponse() {
+    // ⚠️ 2026-07-21 改成直接跳轉 Google，不顯示「僅限手機瀏覽」這種提示文字。
+    // 原本的提示文字等於告訴對方「這裡確實有東西、只是被擋住」，反而引誘
+    // 好奇的人繼續嘗試繞過；改成跳轉 Google，電腦打開這個網址時，
+    // 看起來就像網址打錯、或這裡什麼都沒有，不會讓人知道背後其實有系統。
+    return new Response(null, {
+        status: 302,
+        headers: { 'Location': 'https://www.google.com' }
     });
 }
 
@@ -166,6 +170,8 @@ async function handleApi(request, env) {
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
+        const ua = request.headers.get('User-Agent') || '';
+        const isMobile = MOBILE_UA_REGEX.test(ua);
 
         // /api/ 底下走代理 + 限流邏輯；不做 UA 擋（密碼本身是驗證），
         // 但一樣套用安全 headers
@@ -174,17 +180,30 @@ export default {
             return withSecurityHeaders(resp);
         }
 
-        // ★★★ 2026-07-23：原本這裡有「不是手機格式」「不是LINE內建瀏覽器」
-        // 兩道檢查，沒過就直接302導去Google。現在暫時拿掉，任何裝置、任何
-        // 瀏覽器都能直接看到頁面（含 /admin，kiosk 金鑰通道也還在，繼續有效，
-        // 只是現在就算沒帶kioskKey也不會被擋）。
-        //
-        // 拿掉之後的影響：這兩道原本是「裝置層級」的第一道防線，拿掉後不代表
-        // 系統不安全——真正保護資料的是後面 idToken 驗證、後台密碼、
-        // LINE 身份白名單這些機制，都還在正常運作，沒有被動到。只是現在
-        // 電腦瀏覽器也能直接開到點餐頁面/後台登入畫面（但沒有密碼/身份
-        // 一樣進不去實際功能），跟之前「电脑打开直接跳Google、看起来像
-        // 网址不存在」的隐蔽效果不一样了。
+        // ★ 2026-07-21 新增：後台改用 Windows 封閉式電腦（kiosk 環境）操作，
+        // Windows 上的 Chrome 不管有沒有開 kiosk 模式，User-Agent 都不會是
+        // 手機格式、也不會有 LINE 標記，照原本規則會被直接擋在外面。
+        // 這裡開一條「例外通道」：只有 /admin 路徑、而且網址帶著正確金鑰的
+        // 請求，才能跳過手機/LINE 檢查——不是把規則整個放寬，只有知道這組
+        // 金鑰的這台特定電腦能用，其他人一樣被擋。金鑰放在 kiosk 電腦的
+        // 啟動捷徑網址裡，不會出現在一般人看得到的地方。
+        const kioskKey = url.searchParams.get('kioskKey') || '';
+        const isKioskAdmin = url.pathname.startsWith('/admin') &&
+            !!env.ADMIN_KIOSK_KEY && kioskKey === env.ADMIN_KIOSK_KEY;
+
+        if (!isKioskAdmin) {
+            // 其他所有路徑（含首頁、tool_*.html 靜態檔案）：先過裝置門禁
+            if (!isMobile) {
+                return withSecurityHeaders(mobileBlockedResponse());
+            }
+
+            // 所有路徑（含 /admin，除了上面的 kiosk 例外）都要求一定要從
+            // LINE 內建瀏覽器打開，在 Cloudflare 這一層就擋掉，不是「送出
+            // 程式碼後才靠 JavaScript 判斷再踢人」。
+            if (!/\bLine\//i.test(ua)) {
+                return withSecurityHeaders(mobileBlockedResponse());
+            }
+        }
 
         // 通過檢查（或是合法的 kiosk 電腦），交給 Assets 服務靜態檔案
         // 路由規則：
