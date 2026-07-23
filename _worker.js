@@ -1,10 +1,13 @@
-// ⚠️ Workers with Assets 架構：main = "_worker.js"，這個檔案是唯一的進入點，
-// functions/ 資料夾不會被執行，所以裝置門禁、密碼限流、安全 headers 全部整合在這裡。
+// ⚠️⚠️⚠️ 這是「診斷用」的臨時版本，不是正式版！⚠️⚠️⚠️
+// 用途：原本卡在 mobile/LINE 檢查會直接 302 跳轉去 Google，看不到任何線索。
+// 這個版本改成把偵測結果印在畫面上，方便找出「一開就跳去 Google」到底是
+// 卡在 isMobile 判斷，還是卡在 Line/ 判斷，還是 UA 字串本身長得跟預期不同。
 //
-// 需要的 binding / 變數（不要寫進 wrangler.toml 的 [vars]，那是明文、會進 git）：
-// - env.GAS_WEB_APP_URL  → 用 Secret 設定（Dashboard: Settings > Variables > 選 "Secret" 類型；
-//                           或本機用 `npx wrangler secret put GAS_WEB_APP_URL`）
-// - env.RATE_LIMIT_KV    → 用 wrangler.toml 的 [[kv_namespaces]] 綁定
+// 使用方式：
+// 1. 用這個檔案「暫時取代」你現有的 _worker.js，重新部署一次
+// 2. 手機在 LINE App 裡點一次 LIFF 連結，把看到的畫面截圖給我
+// 3. 診斷完看完結果後，記得把原本正常版本的 _worker.js 換回去、重新部署，
+//    不要讓這個診斷版本留在正式環境（它會把 User-Agent 資訊暴露給任何訪客看）
 
 const MOBILE_UA_REGEX = /Mobi|Android|iPhone|iPad|iPod|Windows Phone|BlackBerry/i;
 const MAX_FAILED_ATTEMPTS = 10;
@@ -22,12 +25,6 @@ function withSecurityHeaders(response) {
     const newHeaders = new Headers(response.headers);
     newHeaders.set('X-Frame-Options', 'DENY');
     newHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-    // ⚠️ 2026-07-21 拿掉 Content-Security-Policy：客人點餐頁面的 LINE 分享功能
-    // （liff.shareTargetPicker）需要跟 LINE 官方網域互動，CSP 限制頁面只能跟
-    // 自己網域溝通，會讓分享按鈕點下去沒反應。這個問題之前在 index.html 自己的
-    // 程式碼歷史裡就出現過一次、也修過一次（拿掉 CSP），這次是在 _worker.js
-    // 加安全 headers 時不小心重新引入了同樣的問題，教訓：CSP 對這類會跟外部
-    // 服務（LINE、金流等）互動的頁面風險較高，加之前要先確認會不會擋到功能。
     return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
@@ -35,14 +32,28 @@ function withSecurityHeaders(response) {
     });
 }
 
-function mobileBlockedResponse() {
-    // ⚠️ 2026-07-21 改成直接跳轉 Google，不顯示「僅限手機瀏覽」這種提示文字。
-    // 原本的提示文字等於告訴對方「這裡確實有東西、只是被擋住」，反而引誘
-    // 好奇的人繼續嘗試繞過；改成跳轉 Google，電腦打開這個網址時，
-    // 看起來就像網址打錯、或這裡什麼都沒有，不會讓人知道背後其實有系統。
-    return new Response(null, {
-        status: 302,
-        headers: { 'Location': 'https://www.google.com' }
+// ★ 診斷用：原本這裡是 mobileBlockedResponse()，直接 302 去 Google，
+// 現在改成回傳一個顯示偵測結果的 HTML 頁面，不會再跳轉。
+function debugBlockedResponse(reason, ua, isMobile, hasLineMarker) {
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>診斷模式</title>
+<style>body{font-family:-apple-system,sans-serif;padding:20px;line-height:1.8;background:#111;color:#eee;}
+h1{color:#f66;font-size:20px;}
+.box{background:#222;padding:16px;border-radius:8px;margin:12px 0;word-break:break-all;}
+.label{color:#8cf;font-weight:bold;}
+.yes{color:#6f6;} .no{color:#f66;}
+</style></head><body>
+<h1>🔍 診斷模式：這次請求被擋下來了</h1>
+<div class="box"><span class="label">被擋的原因：</span><br>${reason}</div>
+<div class="box"><span class="label">isMobile 判斷結果：</span> <span class="${isMobile ? 'yes' : 'no'}">${isMobile}</span></div>
+<div class="box"><span class="label">是否偵測到 Line/ 標記：</span> <span class="${hasLineMarker ? 'yes' : 'no'}">${hasLineMarker}</span></div>
+<div class="box"><span class="label">完整 User-Agent 字串：</span><br>${ua}</div>
+<p style="color:#999;font-size:13px;">把這個畫面截圖給開發者即可，這是暫時的診斷頁面，不是正式頁面。</p>
+</body></html>`;
+    return new Response(html, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
     });
 }
 
@@ -50,15 +61,6 @@ function getIp(request) {
     return request.headers.get('CF-Connecting-IP') || 'unknown';
 }
 
-// ★ 2026-07-21 新增：限流改用「已驗證的 LINE 身份」而不是 IP，原因是同店
-// WiFi 底下所有裝置共用一個對外 IP，用 IP 限流會連累同店其他人。但這裡
-// 不能直接信任前端說「我是誰」——前端傳來的身份宣稱可以被偽造，如果直接
-// 採信，等於形同虛設，有心人只要每次假裝不同身份就能繞過限流。
-// 所以這裡由 Cloudflare 自己直接打 LINE 官方的驗證 API，獨立確認這個
-// idToken 真的是 LINE 核發的、而且真的核發給這個 LIFF 用的，不透過 Google
-// Apps Script那一層，也不相信前端的任何說法。驗證失敗（沒帶 idToken、
-// token 過期、不是這個LIFF核發的…）就安全退回用 IP 限流，不會因為這層
-// 附加機制故障就讓密碼登入整個用不了。
 async function verifyLineIdTokenWorker(idToken, channelId) {
     if (!idToken || !channelId) return null;
     try {
@@ -76,8 +78,6 @@ async function verifyLineIdTokenWorker(idToken, channelId) {
 }
 
 async function getRateLimitKey(request, env) {
-    // 先試著從請求裡拿 idToken（GET 帶在網址參數，POST 帶在 JSON body 裡），
-    // 驗證成功就用「line:真實UserID」當 key，驗證不到才退回用 IP。
     const incomingUrl = new URL(request.url);
     let idToken = incomingUrl.searchParams.get('idToken') || '';
     if (!idToken && request.method === 'POST') {
@@ -172,43 +172,29 @@ export default {
         const url = new URL(request.url);
         const ua = request.headers.get('User-Agent') || '';
         const isMobile = MOBILE_UA_REGEX.test(ua);
+        const hasLineMarker = /\bLine\//i.test(ua);
 
-        // /api/ 底下走代理 + 限流邏輯；不做 UA 擋（密碼本身是驗證），
-        // 但一樣套用安全 headers
         if (url.pathname.startsWith('/api/')) {
             const resp = await handleApi(request, env);
             return withSecurityHeaders(resp);
         }
 
-        // ★ 2026-07-21 新增：後台改用 Windows 封閉式電腦（kiosk 環境）操作，
-        // Windows 上的 Chrome 不管有沒有開 kiosk 模式，User-Agent 都不會是
-        // 手機格式、也不會有 LINE 標記，照原本規則會被直接擋在外面。
-        // 這裡開一條「例外通道」：只有 /admin 路徑、而且網址帶著正確金鑰的
-        // 請求，才能跳過手機/LINE 檢查——不是把規則整個放寬，只有知道這組
-        // 金鑰的這台特定電腦能用，其他人一樣被擋。金鑰放在 kiosk 電腦的
-        // 啟動捷徑網址裡，不會出現在一般人看得到的地方。
         const kioskKey = url.searchParams.get('kioskKey') || '';
         const isKioskAdmin = url.pathname.startsWith('/admin') &&
             !!env.ADMIN_KIOSK_KEY && kioskKey === env.ADMIN_KIOSK_KEY;
 
         if (!isKioskAdmin) {
-            // 其他所有路徑（含首頁、tool_*.html 靜態檔案）：先過裝置門禁
+            // ★ 診斷模式：不是手機格式 → 顯示診斷頁面（原本是直接跳轉 Google）
             if (!isMobile) {
-                return withSecurityHeaders(mobileBlockedResponse());
+                return withSecurityHeaders(debugBlockedResponse('isMobile 判斷失敗（User-Agent 不像手機格式）', ua, isMobile, hasLineMarker));
             }
 
-            // 所有路徑（含 /admin，除了上面的 kiosk 例外）都要求一定要從
-            // LINE 內建瀏覽器打開，在 Cloudflare 這一層就擋掉，不是「送出
-            // 程式碼後才靠 JavaScript 判斷再踢人」。
-            if (!/\bLine\//i.test(ua)) {
-                return withSecurityHeaders(mobileBlockedResponse());
+            // ★ 診斷模式：沒有 Line/ 標記 → 顯示診斷頁面（原本是直接跳轉 Google）
+            if (!hasLineMarker) {
+                return withSecurityHeaders(debugBlockedResponse('沒有偵測到 Line/ 標記（判斷不是從 LINE 內建瀏覽器打開的）', ua, isMobile, hasLineMarker));
             }
         }
 
-        // 通過檢查（或是合法的 kiosk 電腦），交給 Assets 服務靜態檔案
-        // 路由規則：
-        //   /        → index.html（客人點餐頁面，Cloudflare 預設就會找 index.html，不用改寫）
-        //   /admin   → admin_hub_basic.html（後台管理，要手動改寫路徑）
         if (env.ASSETS) {
             let assetRequest = request;
             if (url.pathname === '/admin' || url.pathname === '/admin/') {
