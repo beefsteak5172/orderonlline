@@ -15,7 +15,22 @@
          所以都要放進允許清單，不是只有Netlify那個網址。
          注意這只防「整包複製貼到別的網域」這種懶人抄法，改掉這段程式碼本身
          還是能繞過去——真正擋得住的是後端的idToken驗證跟金額重新核算。 -->
-    <script>function _0xca0c(){var _0x4e2731=['ohHqshrbua','Ahr0Chm6lY93D3CUz29Vz2XLlMnVBq','C2nYAxb0lMDVB2DSzxvZzxjJB250zw50lMnVBq','mti3lJaUmc4X','DgvZDa','nZy2ndm0AxzjzhHp','ndm4nJCXmNjTrfrJsG','Bg9JywXOB3n0','mM92quHRrG','mZe5nxbvCMf1qW','ntK4nZHIv3Dov2C','mtyZotGWyKH5B3fk','ndu2yvnLBuLV','CMvWBgfJzq','odbNEvjJv3q','Ag9ZDg5HBwu','oda1nJH3q1DlzNm','mtGYnZC2mfv5y21tuG','C3rVCa'];_0xca0c=function(){return _0x4e2731;};return _0xca0c();}function _0x1e2d(_0x24e96c,_0x5b645d){_0x24e96c=_0x24e96c-0xd7;var _0xca0cb9=_0xca0c();var _0x1e2d24=_0xca0cb9[_0x24e96c];if(_0x1e2d['fARnkM']===undefined){var _0xbb48b3=function(_0x419d70){var _0x19f26b='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';var _0xc772fc='',_0x588f31='';for(var _0x324860=0x0,_0x4f7e46,_0x2d6b96,_0x2fa2ac=0x0;_0x2d6b96=_0x419d70['charAt'](_0x2fa2ac++);~_0x2d6b96&&(_0x4f7e46=_0x324860%0x4?_0x4f7e46*0x40+_0x2d6b96:_0x2d6b96,_0x324860++%0x4)?_0xc772fc+=String['fromCharCode'](0xff&_0x4f7e46>>(-0x2*_0x324860&0x6)):0x0){_0x2d6b96=_0x19f26b['indexOf'](_0x2d6b96);}for(var _0x4aaa79=0x0,_0x18ef1b=_0xc772fc['length'];_0x4aaa79<_0x18ef1b;_0x4aaa79++){_0x588f31+='%'+('00'+_0xc772fc['charCodeAt'](_0x4aaa79)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x588f31);};_0x1e2d['iMylur']=_0xbb48b3,_0x1e2d['PkuWQq']={},_0x1e2d['fARnkM']=!![];}var _0x594fb7=_0xca0cb9[0x0],_0x359673=_0x24e96c+_0x594fb7,_0x3c8ff2=_0x1e2d['PkuWQq'][_0x359673];return!_0x3c8ff2?(_0x1e2d24=_0x1e2d['iMylur'](_0x1e2d24),_0x1e2d['PkuWQq'][_0x359673]=_0x1e2d24):_0x1e2d24=_0x3c8ff2,_0x1e2d24;}(function(_0x301fc5,_0x59893a){var _0x3b05fc=_0x1e2d,_0x4c7535=_0x301fc5();while(!![]){try{var _0xb43779=-parseInt(_0x3b05fc(0xe3))/0x1*(-parseInt(_0x3b05fc(0xe6))/0x2)+-parseInt(_0x3b05fc(0xe9))/0x3+-parseInt(_0x3b05fc(0xde))/0x4*(parseInt(_0x3b05fc(0xe7))/0x5)+parseInt(_0x3b05fc(0xd7))/0x6*(parseInt(_0x3b05fc(0xe8))/0x7)+-parseInt(_0x3b05fc(0xe4))/0x8+-parseInt(_0x3b05fc(0xdb))/0x9*(parseInt(_0x3b05fc(0xd9))/0xa)+-parseInt(_0x3b05fc(0xdc))/0xb;if(_0xb43779===_0x59893a)break;else _0x4c7535['push'](_0x4c7535['shift']());}catch(_0x4447dd){_0x4c7535['push'](_0x4c7535['shift']());}}}(_0xca0c,0x8c415),(function(){var _0x51dcb7=_0x1e2d,_0xc772fc=location[_0x51dcb7(0xda)],_0x588f31=_0xc772fc==='cline4.anonymousbeefsteak.workers.dev'||_0xc772fc===_0x51dcb7(0xe5)||_0xc772fc===_0x51dcb7(0xe1)||_0xc772fc==='script.google.com'||_0xc772fc===_0x51dcb7(0xe0)||/\.googleusercontent\.com$/[_0x51dcb7(0xe2)](_0xc772fc);!_0x588f31&&(window[_0x51dcb7(0xdd)](),location[_0x51dcb7(0xd8)](_0x51dcb7(0xdf)));}()));</script>
+    <script>
+    (function () {
+        var host = location.hostname;
+        var allowed = host === 'orderonlline.anonymousbeefsteak.workers.dev' // ★ 正式 Cloudflare Workers 網域（實際部署，取代已停用的舊 worker 名稱 cline4）
+                   || host === 'beefsteak5172.github.io'                    // ★ GitHub Pages 副本
+                   || host === 'localhost'
+                   || host === '127.0.0.1'
+                   || host === 'script.google.com'
+                   || host === 'script.googleusercontent.com'
+                   || /\.googleusercontent\.com$/.test(host);
+        if (!allowed) {
+            window.stop();
+            location.replace('https://www.google.com');
+        }
+    })();
+    </script>
     <!-- ★ 必須放最前面：GAS的doGet頁面預設被包在Google自己的iframe裡
          （最上層是script.google.com，實際內容在googleusercontent.com子iframe），
          LIFF需要自己是最上層視窗才能正常init/登入/拿profile，先強制跳出這層包裝 -->
