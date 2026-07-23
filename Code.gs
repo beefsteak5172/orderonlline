@@ -1826,7 +1826,8 @@ function handleGetMenu(e) {
     const lastRow = sheet.getLastRow();
     let items = [];
     if (lastRow >= 2) {
-      const data = sheet.getRange(2, 1, lastRow - 1, 11).getValues();
+      // ★ 2026-07-23 擴充：讀取範圍從11欄擴大到14欄，加入廚房縮寫/描述/份量
+      const data = sheet.getRange(2, 1, lastRow - 1, 14).getValues();
       items = data
         .filter(row => row[1] !== '')
         .map((row, i) => ({
@@ -1841,7 +1842,10 @@ function handleGetMenu(e) {
           cost: Number(row[7]) || 0,
           safetyStock: Number(row[8]) || 0,
           canBeCombo: String(row[9] || '').trim().toUpperCase() === 'Y',
-          comboUpgradePrice: Number(row[10]) || 0
+          comboUpgradePrice: Number(row[10]) || 0,
+          shortName: row[11] || '',
+          description: row[12] || '',
+          weight: row[13] || ''
         }));
     }
 
@@ -1954,7 +1958,10 @@ function handleUpdateMenuPost(body) {
     if (!sheet) sheet = ss.insertSheet(SHEET_NAME_MENU);
 
     sheet.clear();
-    const headers = ['分類', '名稱', '價格', '圖標', '狀態', '圖片', '客製選項', '成本', '安全庫存(每日限量，0或空白=不限量)', '可升級套餐(Y/N)', '套餐加購價'];
+    // ★ 2026-07-23 新增：廚房縮寫、描述、份量三個欄位，加在最後面（不動
+    // 前面既有欄位的順序），避免影響其他直接用欄位編號存取的程式碼
+    // （例如autoDelistMenuItemsByName用第2欄=名稱、第5欄=狀態）
+    const headers = ['分類', '名稱', '價格', '圖標', '狀態', '圖片', '客製選項', '成本', '安全庫存(每日限量，0或空白=不限量)', '可升級套餐(Y/N)', '套餐加購價', '廚房縮寫', '描述', '份量'];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.getRange(1, 1, 1, headers.length)
       .setFontWeight('bold').setFontColor('#FFFFFF').setBackground('#2980B9')
@@ -1964,7 +1971,8 @@ function handleUpdateMenuPost(body) {
     const rows = items.map(it => [
       it.category || '未分類', it.name || '', Number(it.price) || 0, it.icon || '',
       it.status || '供應中', it.image || '', it.options || '', Number(it.cost) || 0,
-      Number(it.safetyStock) || '', it.canBeCombo ? 'Y' : '', Number(it.comboUpgradePrice) || 0
+      Number(it.safetyStock) || '', it.canBeCombo ? 'Y' : '', Number(it.comboUpgradePrice) || 0,
+      it.shortName || '', it.description || '', it.weight || ''
     ]);
     sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
 
@@ -2170,7 +2178,8 @@ function handleUpdateMenu(e) {
     }
 
     sheet.clear();
-    const headers = ['分類', '名稱', '價格', '圖標', '狀態', '圖片', '客製選項', '成本', '安全庫存(每日限量，0或空白=不限量)', '可升級套餐(Y/N)', '套餐加購價'];
+    // ★ 2026-07-23 新增：廚房縮寫、描述、份量三個欄位，加在最後面
+    const headers = ['分類', '名稱', '價格', '圖標', '狀態', '圖片', '客製選項', '成本', '安全庫存(每日限量，0或空白=不限量)', '可升級套餐(Y/N)', '套餐加購價', '廚房縮寫', '描述', '份量'];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.getRange(1, 1, 1, headers.length)
       .setFontWeight('bold').setFontColor('#FFFFFF').setBackground('#2980B9')
@@ -2188,7 +2197,10 @@ function handleUpdateMenu(e) {
       Number(it.cost) || 0,
       Number(it.safetyStock) || '',
       it.canBeCombo ? 'Y' : '',
-      Number(it.comboUpgradePrice) || 0
+      Number(it.comboUpgradePrice) || 0,
+      it.shortName || '',
+      it.description || '',
+      it.weight || ''
     ]);
     sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
 
@@ -4421,16 +4433,27 @@ function handleGetMenuRaw(ss) {
   if (!sheet) return [];
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
-  const data = sheet.getRange(2, 1, lastRow - 1, 11).getValues();
+  // ★ 2026-07-23 擴充：讀取範圍從11欄擴大到14欄，把廚房縮寫/描述/份量也
+  // 一併讀進來——這支函式除了給成本比對用，也被handleSaveMenuPreset拿去
+  // 存快照，沒讀到這三個新欄位的話，套用預設集時會把這些資料弄丟
+  const data = sheet.getRange(2, 1, lastRow - 1, 14).getValues();
   return data
     .filter(row => row[1] !== '')
     .map(row => ({
+      category: row[0],
       name: row[1],
       price: row[2],
+      icon: row[3],
+      status: row[4],
+      image: row[5],
+      options: row[6],
       cost: Number(row[7]) || 0,
       safetyStock: Number(row[8]) || 0,
       canBeCombo: String(row[9] || '').trim().toUpperCase() === 'Y',
-      comboUpgradePrice: Number(row[10]) || 0
+      comboUpgradePrice: Number(row[10]) || 0,
+      shortName: row[11] || '',
+      description: row[12] || '',
+      weight: row[13] || ''
     }));
 }
 
@@ -5406,8 +5429,8 @@ function getOrCreateSheet(name, headers, spreadsheetId) {
   return sheet;
 }
 
-const SCRIPT_VERSION = 'v84-2026-07-22-batch7-five-features';
-const EXPECTED_FRONTEND_VERSION = 'v96-2026-07-22-cleanup-dead-code';
+const SCRIPT_VERSION = 'v85-2026-07-23-menu-extra-fields';
+const EXPECTED_FRONTEND_VERSION = 'v97-2026-07-23-menu-extra-fields';
 
 // ★ 安全修正：統一的錯誤回應函式，取代原本27處「直接把err.message丟給
 // 客人看」的寫法。真正的錯誤細節（可能包含試算表內部欄位名稱、變數名稱、
